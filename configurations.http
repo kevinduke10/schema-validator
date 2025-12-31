@@ -1,0 +1,309 @@
+### Schema Validator API - Configuration Examples
+### Base URL - Update this if your server runs on a different port
+@baseUrl = http://localhost:3000
+@apiPath = {{baseUrl}}/api/configurations
+
+### Variables
+# Replace these with actual IDs from your schema creation
+@schemaId = test-schema-id-123
+@configurationId = config-id-123
+
+###############################################
+# CREATE CONFIGURATIONS
+###############################################
+
+### Create a Signal Configuration
+# Note: schemaId must match an existing active schema
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "{{schemaId}}",
+  "type": "signal",
+  "name": "Temperature Signal",
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 30,
+    "active": true
+  }
+}
+
+### Create a Post-Processor Configuration
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "{{schemaId}}",
+  "type": "post-processor",
+  "name": "Data Aggregator",
+  "data": {
+    "name": "Jane Smith",
+    "email": "jane.smith@example.com",
+    "age": 28,
+    "active": true
+  }
+}
+
+### Create Another Signal Configuration
+# Make sure you have a Signal Schema created first
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "signal-schema-id",
+  "type": "signal",
+  "name": "Pressure Signal",
+  "data": {
+    "name": "MacBook Pro 16-inch",
+    "price": 2499.99,
+    "inStock": true,
+    "category": "electronics"
+  }
+}
+
+### Create Another Post-Processor Configuration
+# Make sure you have a Post-Processor Schema created first
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "post-processor-schema-id",
+  "type": "post-processor",
+  "name": "Data Transformer",
+  "data": {
+    "orderId": "ORD-12345",
+    "customerId": "CUST-001",
+    "items": [
+      {
+        "productId": "PROD-001",
+        "quantity": 2,
+        "price": 99.99
+      },
+      {
+        "productId": "PROD-002",
+        "quantity": 1,
+        "price": 149.99
+      }
+    ],
+    "total": 349.97,
+    "status": "processing"
+  }
+}
+
+###############################################
+# READ CONFIGURATIONS
+###############################################
+
+### Get All Configurations
+GET {{apiPath}}
+
+### Get Configurations by Schema ID
+GET {{apiPath}}?schemaId={{schemaId}}
+
+### Get Configurations by Type (Signal)
+GET {{apiPath}}?type=signal
+
+### Get Configurations by Type (Post-Processor)
+GET {{apiPath}}?type=post-processor
+
+### Get Configurations by Schema ID and Type
+GET {{apiPath}}?schemaId={{schemaId}}&type=signal
+
+### Get Configuration by ID
+GET {{apiPath}}/{{configurationId}}
+
+###############################################
+# UPDATE CONFIGURATIONS
+###############################################
+
+### Update Configuration Name and Type
+PUT {{apiPath}}/{{configurationId}}
+Content-Type: application/json
+
+{
+  "name": "Temperature Signal - Updated",
+  "type": "signal"
+}
+
+### Update Configuration Data
+# Data will be validated against the schema
+PUT {{apiPath}}/{{configurationId}}
+Content-Type: application/json
+
+{
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe.updated@example.com",
+    "age": 31,
+    "active": true
+  }
+}
+
+### Update Both Name and Data
+PUT {{apiPath}}/{{configurationId}}
+Content-Type: application/json
+
+{
+  "name": "John Doe - Senior",
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 35,
+    "active": true
+  }
+}
+
+###############################################
+# VALIDATION
+###############################################
+
+### Validate a Configuration Against Its Schema
+POST {{apiPath}}/{{configurationId}}/validate
+
+### Validate Another Configuration
+POST {{apiPath}}/{{configurationId}}/validate
+
+###############################################
+# DELETE
+###############################################
+
+### Delete a Configuration
+DELETE {{apiPath}}/{{configurationId}}
+
+###############################################
+# ERROR EXAMPLES
+###############################################
+
+### Try to Create Configuration with Invalid Data
+# This should fail validation
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "{{schemaId}}",
+  "type": "signal",
+  "name": "Invalid Signal",
+  "data": {
+    "name": "Invalid Signal"
+    // Missing required "email" field
+  }
+}
+
+### Try to Create Configuration with Non-existent Schema
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "non-existent-schema-id",
+  "type": "signal",
+  "name": "Test Config",
+  "data": {
+    "name": "Test"
+  }
+}
+
+### Try to Update with Invalid Data
+PUT {{apiPath}}/{{configurationId}}
+Content-Type: application/json
+
+{
+  "data": {
+    "name": "Test",
+    "email": "invalid-email"
+    // Invalid email format
+  }
+}
+
+###############################################
+# WORKFLOW EXAMPLE
+###############################################
+
+### Step 1: Create a Schema
+POST {{baseUrl}}/api/schemas
+Content-Type: application/json
+
+{
+  "name": "Task Schema",
+  "type": "signal",
+  "description": "Schema for task management",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": { "type": "string" },
+      "description": { "type": "string" },
+      "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+      "completed": { "type": "boolean" },
+      "dueDate": { "type": "string", "format": "date" }
+    },
+    "required": ["title", "priority"]
+  }
+}
+
+### Step 2: Create Configuration Using the Schema
+# Copy the schemaId from Step 1 response
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "schema-id-from-step-1",
+  "type": "signal",
+  "name": "Important Task",
+  "data": {
+    "title": "Complete project documentation",
+    "description": "Write comprehensive documentation for the project",
+    "priority": "high",
+    "completed": false,
+    "dueDate": "2024-12-31"
+  }
+}
+
+### Step 3: Validate the Configuration
+# Copy the configurationId from Step 2 response
+POST {{apiPath}}/configuration-id-from-step-2/validate
+
+### Step 4: Update Schema (Creates Version 2)
+PUT {{baseUrl}}/api/schemas/schema-id-from-step-1
+Content-Type: application/json
+
+{
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": { "type": "string" },
+      "description": { "type": "string" },
+      "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+      "completed": { "type": "boolean" },
+      "dueDate": { "type": "string", "format": "date" },
+      "assignee": { "type": "string" }
+    },
+    "required": ["title", "priority"]
+  }
+}
+
+### Step 5: Create New Configuration with Updated Schema
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "schemaId": "schema-id-from-step-1",
+  "type": "signal",
+  "name": "Critical Task",
+  "data": {
+    "title": "Fix critical bug",
+    "description": "Urgent bug fix needed",
+    "priority": "critical",
+    "completed": false,
+    "dueDate": "2024-12-20",
+    "assignee": "developer@example.com"
+  }
+}
+
+### Step 6: Rollback to Previous Schema Version
+PUT {{baseUrl}}/api/schemas/schema-id-from-step-1/active
+Content-Type: application/json
+
+{
+  "version": 1
+}
+

@@ -1,0 +1,36 @@
+[
+  {
+    "schemaName": "Temperature Signal Schema",
+    "type": "signal",
+    "name": "Room Temperature Sensor",
+    "data": {
+      "sensorId": "sensor-001",
+      "temperature": 22.5,
+      "unit": "celsius",
+      "timestamp": "2024-12-31T12:00:00Z"
+    }
+  },
+  {
+    "schemaName": "Temperature Signal Schema",
+    "type": "signal",
+    "name": "Outdoor Temperature Sensor",
+    "data": {
+      "sensorId": "sensor-002",
+      "temperature": 15.3,
+      "unit": "celsius",
+      "timestamp": "2024-12-31T12:00:00Z"
+    }
+  },
+  {
+    "schemaName": "Data Aggregator Post-Processor",
+    "type": "post-processor",
+    "name": "Hourly Average Aggregator",
+    "data": {
+      "aggregationType": "average",
+      "windowSize": 1,
+      "windowUnit": "hours",
+      "outputFormat": "json"
+    }
+  }
+]
+

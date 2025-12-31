@@ -1,0 +1,271 @@
+### Schema Validator API - Schema Examples
+### Base URL - Update this if your server runs on a different port
+@baseUrl = http://localhost:3000
+@apiPath = {{baseUrl}}/api/schemas
+
+### Variables
+@schemaId = test-schema-id-123
+
+###############################################
+# CREATE SCHEMAS
+###############################################
+
+### Create a Signal Schema (Version 1)
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "name": "Signal Schema",
+  "type": "signal",
+  "description": "Schema for signal objects",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "email": {
+        "type": "string",
+        "format": "email"
+      },
+      "age": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 150
+      },
+      "active": {
+        "type": "boolean"
+      }
+    },
+    "required": ["name", "email"],
+    "additionalProperties": false
+  }
+}
+
+### Create a Post-Processor Schema
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "name": "Post-Processor Schema",
+  "type": "post-processor",
+  "description": "Schema for post-processor objects",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "price": {
+        "type": "number",
+        "minimum": 0
+      },
+      "inStock": {
+        "type": "boolean"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["electronics", "clothing", "food", "books"]
+      }
+    },
+    "required": ["name", "price"]
+  }
+}
+
+### Create Another Signal Schema
+POST {{apiPath}}
+Content-Type: application/json
+
+{
+  "name": "Signal Schema 2",
+  "type": "signal",
+  "description": "Another signal schema",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "orderId": {
+        "type": "string"
+      },
+      "customerId": {
+        "type": "string"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "productId": { "type": "string" },
+            "quantity": { "type": "number", "minimum": 1 },
+            "price": { "type": "number", "minimum": 0 }
+          },
+          "required": ["productId", "quantity"]
+        },
+        "minItems": 1
+      },
+      "total": {
+        "type": "number",
+        "minimum": 0
+      },
+      "status": {
+        "type": "string",
+        "enum": ["pending", "processing", "shipped", "delivered", "cancelled"]
+      }
+    },
+    "required": ["orderId", "customerId", "items", "total"]
+  }
+}
+
+###############################################
+# READ SCHEMAS
+###############################################
+
+### Get All Schemas
+GET {{apiPath}}
+
+### Get Only Active Schemas
+GET {{apiPath}}?active=true
+
+### Get Schemas by Type (Signal)
+GET {{apiPath}}?active=true&type=signal
+
+### Get Schemas by Type (Post-Processor)
+GET {{apiPath}}?active=true&type=post-processor
+
+### Get Active Schema by SchemaId
+# Replace {schemaId} with actual schemaId from create response
+GET {{apiPath}}/{{schemaId}}
+
+### Get All Versions of a Schema
+GET {{apiPath}}/{{schemaId}}/versions
+
+### Get Specific Version of a Schema
+GET {{apiPath}}/{{schemaId}}/versions/1
+
+###############################################
+# UPDATE SCHEMAS (Creates New Version)
+###############################################
+
+### Update Schema - Creates Version 2
+# This will create a new version and set it as active
+PUT {{apiPath}}/{{schemaId}}
+Content-Type: application/json
+
+{
+  "name": "Signal Schema Updated",
+  "type": "signal",
+  "description": "Updated schema with new fields",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "email": {
+        "type": "string",
+        "format": "email"
+      },
+      "age": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 150
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "phone": {
+        "type": "string",
+        "pattern": "^\\+?[1-9]\\d{1,14}$"
+      },
+      "address": {
+        "type": "object",
+        "properties": {
+          "street": { "type": "string" },
+          "city": { "type": "string" },
+          "zipCode": { "type": "string" }
+        }
+      }
+    },
+    "required": ["name", "email"],
+    "additionalProperties": false
+  }
+}
+
+### Update Schema Type (Creates New Version)
+PUT {{apiPath}}/{{schemaId}}
+Content-Type: application/json
+
+{
+  "name": "Signal Schema v2",
+  "type": "signal"
+}
+
+###############################################
+# VERSION MANAGEMENT
+###############################################
+
+### Set a Specific Version as Active
+# This allows you to rollback to a previous version
+PUT {{apiPath}}/{{schemaId}}/active
+Content-Type: application/json
+
+{
+  "version": 1
+}
+
+###############################################
+# VALIDATION
+###############################################
+
+### Validate Data Against Active Schema
+POST {{apiPath}}/{{schemaId}}/validate
+Content-Type: application/json
+
+{
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 30,
+    "active": true
+  }
+}
+
+### Validate Invalid Data (Should Return Errors)
+POST {{apiPath}}/{{schemaId}}/validate
+Content-Type: application/json
+
+{
+  "data": {
+    "name": "Jane Doe",
+    "age": 25
+    // Missing required "email" field
+  }
+}
+
+### Validate Data Against Specific Version
+POST {{apiPath}}/{{schemaId}}/versions/1/validate
+Content-Type: application/json
+
+{
+  "data": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 30
+  }
+}
+
+###############################################
+# DELETE
+###############################################
+
+### Delete All Versions of a Schema
+DELETE {{apiPath}}/{{schemaId}}
+
+###############################################
+# HEALTH CHECK
+###############################################
+
+### Health Check
+GET {{baseUrl}}/health
+

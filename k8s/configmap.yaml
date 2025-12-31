@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schema-validator-config
+  labels:
+    app: schema-validator
+data:
+  mongodb-db-name: "schema-validator"
+  port: "3000"
+

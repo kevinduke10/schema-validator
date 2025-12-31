@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schema-validator-preconfig
+  labels:
+    app: schema-validator
+data:
+  schemas.json: |
+    [
+      {
+        "name": "Temperature Signal Schema",
+        "type": "signal",
+        "description": "Schema for temperature signal data",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sensorId": {
+              "type": "string"
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": -273.15
+            },
+            "unit": {
+              "type": "string",
+              "enum": ["celsius", "fahrenheit", "kelvin"]
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": ["sensorId", "temperature", "unit", "timestamp"]
+        }
+      },
+      {
+        "name": "Data Aggregator Post-Processor",
+        "type": "post-processor",
+        "description": "Schema for data aggregation post-processor",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "aggregationType": {
+              "type": "string",
+              "enum": ["average", "sum", "min", "max", "count"]
+            },
+            "windowSize": {
+              "type": "number",
+              "minimum": 1
+            },
+            "windowUnit": {
+              "type": "string",
+              "enum": ["seconds", "minutes", "hours"]
+            },
+            "outputFormat": {
+              "type": "string",
+              "enum": ["json", "csv", "tsv"]
+            }
+          },
+          "required": ["aggregationType", "windowSize", "windowUnit"]
+        }
+      }
+    ]
+  configurations.json: |
+    [
+      {
+        "schemaName": "Temperature Signal Schema",
+        "type": "signal",
+        "name": "Room Temperature Sensor",
+        "data": {
+          "sensorId": "sensor-001",
+          "temperature": 22.5,
+          "unit": "celsius",
+          "timestamp": "2024-12-31T12:00:00Z"
+        }
+      },
+      {
+        "schemaName": "Data Aggregator Post-Processor",
+        "type": "post-processor",
+        "name": "Hourly Average Aggregator",
+        "data": {
+          "aggregationType": "average",
+          "windowSize": 1,
+          "windowUnit": "hours",
+          "outputFormat": "json"
+        }
+      }
+    ]
+
