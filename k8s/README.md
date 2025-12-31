@@ -134,16 +134,92 @@ The application supports loading preconfigured schemas and configurations from a
 ]
 ```
 
+#### Option 2: Type-Based Nested Folder Structure (Recommended for Multiple Items)
+
+**Directory Structure**:
+```
+/etc/app-config/
+├── schemas/
+│   ├── signal/
+│   │   ├── temperature-signal.json
+│   │   └── pressure-signal.json
+│   └── post-processor/
+│       └── data-aggregator.json
+└── configurations/
+    ├── signal/
+    │   ├── room-temperature.json
+    │   └── outdoor-temperature.json
+    └── post-processor/
+        └── hourly-aggregator.json
+```
+
+**Individual Schema File** (`schemas/signal/temperature-signal.json`):
+```json
+{
+  "name": "Temperature Signal Schema",
+  "type": "signal",
+  "version": 1,
+  "active": true,
+  "schemaId": "optional-schema-id",
+  "description": "Schema for temperature signal data",
+  "schema": { ... }
+}
+```
+
+**Schema Version Fields**:
+- `version` (optional): Version number (defaults to 1)
+- `active` (optional): Whether this version is active (defaults to true for version 1, false otherwise)
+- `schemaId` (optional): Schema ID to group versions together (auto-generated if not provided)
+
+**Individual Configuration File** (`configurations/signal/room-temperature.json`):
+```json
+{
+  "schemaName": "Temperature Signal Schema",
+  "type": "signal",
+  "schemaVersion": 1,
+  "name": "Room Temperature Sensor",
+  "data": { ... }
+}
+```
+
+**Configuration Version Fields**:
+- `schemaVersion` (optional): Specific schema version to validate against (defaults to active version)
+
 **Important Notes**:
 - Configurations reference schemas by `schemaName` and `type`
-- The schema must exist and be active for the configuration to be created
-- Both files are optional - you can have just schemas, just configurations, or both
+- If `schemaVersion` is specified in a configuration, it validates against that specific version
+- If `schemaVersion` is not specified, the configuration validates against the active schema version
+- Schemas can specify `version` and `active` status when preloading
+- Multiple versions of the same schema can be preloaded by using the same `schemaId` or `name`+`type`
+- Both formats are optional - you can have just schemas, just configurations, or both
+- Type-based nested folder structure is preferred when you have many schemas/configurations
+- The application automatically detects type-based subdirectories (signal/, post-processor/, etc.)
+- Falls back to flat folder structure if no type subdirectories are found
+- Each file can contain a single object OR an array of objects
 
 ### Example Files
 
-See `config/schemas.json.example` and `config/configurations.json.example` for complete examples.
+- **Single File Format**: See `config/schemas.json.example` and `config/configurations.json.example`
+- **Folder Format**: See `config/schemas/` and `config/configurations/` directories
+- **Kubernetes ConfigMap Examples**:
+  - `k8s/preconfig-configmap.yaml.example` - Single file format
+  - `k8s/preconfig-configmap-folder.yaml.example` - Folder structure format (recommended)
 
-## Preconfigured Data
+### Creating ConfigMap from Type-Based Folder Structure
+
+If you have a type-based folder structure locally, you can create a ConfigMap from it:
+
+```bash
+# Create ConfigMap from config directory (includes type subdirectories)
+kubectl create configmap schema-validator-preconfig \
+  --from-file=config/schemas \
+  --from-file=config/configurations \
+  --dry-run=client -o yaml > k8s/preconfig-configmap.yaml
+```
+
+This will automatically include all files in the type subdirectories (signal/, post-processor/, etc.).
+
+## Configuration
 
 The application supports loading preconfigured schemas and configurations from a mounted ConfigMap on startup. This is useful for:
 

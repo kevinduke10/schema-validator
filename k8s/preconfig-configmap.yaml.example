@@ -10,6 +10,8 @@ data:
       {
         "name": "Temperature Signal Schema",
         "type": "signal",
+        "version": 1,
+        "active": true,
         "description": "Schema for temperature signal data",
         "schema": {
           "type": "object",
@@ -36,6 +38,8 @@ data:
       {
         "name": "Data Aggregator Post-Processor",
         "type": "post-processor",
+        "version": 1,
+        "active": true,
         "description": "Schema for data aggregation post-processor",
         "schema": {
           "type": "object",
@@ -66,6 +70,7 @@ data:
       {
         "schemaName": "Temperature Signal Schema",
         "type": "signal",
+        "schemaVersion": 1,
         "name": "Room Temperature Sensor",
         "data": {
           "sensorId": "sensor-001",
@@ -77,6 +82,7 @@ data:
       {
         "schemaName": "Data Aggregator Post-Processor",
         "type": "post-processor",
+        "schemaVersion": 1,
         "name": "Hourly Average Aggregator",
         "data": {
           "aggregationType": "average",

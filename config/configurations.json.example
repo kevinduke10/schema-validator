@@ -2,6 +2,7 @@
   {
     "schemaName": "Temperature Signal Schema",
     "type": "signal",
+    "schemaVersion": 1,
     "name": "Room Temperature Sensor",
     "data": {
       "sensorId": "sensor-001",
@@ -13,6 +14,7 @@
   {
     "schemaName": "Temperature Signal Schema",
     "type": "signal",
+    "schemaVersion": 1,
     "name": "Outdoor Temperature Sensor",
     "data": {
       "sensorId": "sensor-002",
@@ -24,6 +26,7 @@
   {
     "schemaName": "Data Aggregator Post-Processor",
     "type": "post-processor",
+    "schemaVersion": 1,
     "name": "Hourly Average Aggregator",
     "data": {
       "aggregationType": "average",

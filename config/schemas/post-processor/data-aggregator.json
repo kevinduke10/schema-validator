@@ -1,0 +1,30 @@
+{
+  "name": "Data Aggregator Post-Processor",
+  "type": "post-processor",
+  "version": 1,
+  "active": true,
+  "description": "Schema for data aggregation post-processor",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "aggregationType": {
+        "type": "string",
+        "enum": ["average", "sum", "min", "max", "count"]
+      },
+      "windowSize": {
+        "type": "number",
+        "minimum": 1
+      },
+      "windowUnit": {
+        "type": "string",
+        "enum": ["seconds", "minutes", "hours"]
+      },
+      "outputFormat": {
+        "type": "string",
+        "enum": ["json", "csv", "tsv"]
+      }
+    },
+    "required": ["aggregationType", "windowSize", "windowUnit"]
+  }
+}
+

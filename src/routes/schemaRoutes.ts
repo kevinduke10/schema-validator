@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { SchemaService } from '../services/schemaService';
-import { CreateSchemaRequest, UpdateSchemaRequest, SetActiveVersionRequest } from '../types';
+import { CreateSchemaRequest, UpdateSchemaRequest, SetActiveVersionRequest, Schema } from '../types';
 import { VALID_TYPES } from '../constants/types';
 
 const router = Router();

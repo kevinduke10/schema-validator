@@ -1,0 +1,29 @@
+{
+  "name": "Pressure Signal Schema",
+  "type": "signal",
+  "version": 1,
+  "active": true,
+  "description": "Schema for pressure signal data",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "sensorId": {
+        "type": "string"
+      },
+      "pressure": {
+        "type": "number",
+        "minimum": 0
+      },
+      "unit": {
+        "type": "string",
+        "enum": ["psi", "bar", "pascal", "atm"]
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    "required": ["sensorId", "pressure", "unit", "timestamp"]
+  }
+}
+

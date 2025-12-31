@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ConfigurationService } from '../services/configurationService';
-import { CreateConfigurationRequest, UpdateConfigurationRequest } from '../types';
+import { CreateConfigurationRequest, UpdateConfigurationRequest, Configuration } from '../types';
 import { VALID_TYPES } from '../constants/types';
 
 const router = Router();

@@ -70,6 +70,7 @@ describe('ConfigurationService', () => {
     schemaId: 'test-schema-id',
     version: 1,
     active: true,
+    type: 'signal',
     name: 'Test Schema',
     schema: {
       type: 'object',
@@ -86,6 +87,7 @@ describe('ConfigurationService', () => {
   const mockConfiguration: Configuration = {
     id: 'config-id-1',
     schemaId: 'test-schema-id',
+    type: 'signal',
     name: 'Test Config',
     data: { name: 'John Doe', age: 30 },
     createdAt: new Date(),
@@ -100,6 +102,7 @@ describe('ConfigurationService', () => {
     it('should create a configuration when data is valid', async () => {
       const configData = {
         schemaId: 'test-schema-id',
+        type: 'signal',
         name: 'Test Config',
         data: { name: 'John Doe', age: 30 },
       };
@@ -122,6 +125,7 @@ describe('ConfigurationService', () => {
       await expect(
         ConfigurationService.createConfiguration({
           schemaId: 'non-existent',
+          type: 'signal',
           name: 'Test',
           data: {},
         })
@@ -131,6 +135,7 @@ describe('ConfigurationService', () => {
     it('should throw error if data does not conform to schema', async () => {
       const configData = {
         schemaId: 'test-schema-id',
+        type: 'signal',
         name: 'Test Config',
         data: {}, // Missing required 'name' field
       };

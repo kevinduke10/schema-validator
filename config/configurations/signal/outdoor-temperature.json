@@ -1,0 +1,13 @@
+{
+  "schemaName": "Temperature Signal Schema",
+  "type": "signal",
+  "schemaVersion": 1,
+  "name": "Outdoor Temperature Sensor",
+  "data": {
+    "sensorId": "sensor-002",
+    "temperature": 15.3,
+    "unit": "celsius",
+    "timestamp": "2024-12-31T12:00:00Z"
+  }
+}
+

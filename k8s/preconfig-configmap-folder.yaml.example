@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schema-validator-preconfig
+  labels:
+    app: schema-validator
+data:
+  # Type-based nested structure for schemas
+  # Signal schemas
+  schemas/signal/temperature-signal.json: |
+    {
+      "name": "Temperature Signal Schema",
+      "type": "signal",
+      "version": 1,
+      "active": true,
+      "description": "Schema for temperature signal data",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "sensorId": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": -273.15
+          },
+          "unit": {
+            "type": "string",
+            "enum": ["celsius", "fahrenheit", "kelvin"]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["sensorId", "temperature", "unit", "timestamp"]
+      }
+    }
+  schemas/signal/pressure-signal.json: |
+    {
+      "name": "Pressure Signal Schema",
+      "type": "signal",
+      "version": 1,
+      "active": true,
+      "description": "Schema for pressure signal data",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "sensorId": {
+            "type": "string"
+          },
+          "pressure": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "type": "string",
+            "enum": ["psi", "bar", "pascal", "atm"]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["sensorId", "pressure", "unit", "timestamp"]
+      }
+    }
+  # Post-processor schemas
+  schemas/post-processor/data-aggregator.json: |
+    {
+      "name": "Data Aggregator Post-Processor",
+      "type": "post-processor",
+      "version": 1,
+      "active": true,
+      "description": "Schema for data aggregation post-processor",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "aggregationType": {
+            "type": "string",
+            "enum": ["average", "sum", "min", "max", "count"]
+          },
+          "windowSize": {
+            "type": "number",
+            "minimum": 1
+          },
+          "windowUnit": {
+            "type": "string",
+            "enum": ["seconds", "minutes", "hours"]
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": ["json", "csv", "tsv"]
+          }
+        },
+        "required": ["aggregationType", "windowSize", "windowUnit"]
+      }
+    }
+  # Type-based nested structure for configurations
+  # Signal configurations
+  configurations/signal/room-temperature.json: |
+    {
+      "schemaName": "Temperature Signal Schema",
+      "type": "signal",
+      "schemaVersion": 1,
+      "name": "Room Temperature Sensor",
+      "data": {
+        "sensorId": "sensor-001",
+        "temperature": 22.5,
+        "unit": "celsius",
+        "timestamp": "2024-12-31T12:00:00Z"
+      }
+    }
+  configurations/signal/outdoor-temperature.json: |
+    {
+      "schemaName": "Temperature Signal Schema",
+      "type": "signal",
+      "schemaVersion": 1,
+      "name": "Outdoor Temperature Sensor",
+      "data": {
+        "sensorId": "sensor-002",
+        "temperature": 15.3,
+        "unit": "celsius",
+        "timestamp": "2024-12-31T12:00:00Z"
+      }
+    }
+  # Post-processor configurations
+  configurations/post-processor/hourly-aggregator.json: |
+    {
+      "schemaName": "Data Aggregator Post-Processor",
+      "type": "post-processor",
+      "name": "Hourly Average Aggregator",
+      "data": {
+        "aggregationType": "average",
+        "windowSize": 1,
+        "windowUnit": "hours",
+        "outputFormat": "json"
+      }
+    }

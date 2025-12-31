@@ -47,6 +47,7 @@ describe('Schema Routes', () => {
       schemaId: 'test-schema-id',
       version: 1,
       active: true,
+      type: 'signal',
       name: 'Test Schema',
       description: 'Test Description',
       schema: {
@@ -186,14 +187,15 @@ describe('Schema Routes', () => {
 
       const response = await request(app)
         .post('/api/schemas')
-        .send({
-          name: 'Test Schema',
-          description: 'Test Description',
-          schema: {
-            type: 'object',
-            properties: { name: { type: 'string' } },
-          },
-        });
+              .send({
+                name: 'Test Schema',
+                type: 'signal',
+                description: 'Test Description',
+                schema: {
+                  type: 'object',
+                  properties: { name: { type: 'string' } },
+                },
+              });
 
       expect(response.status).toBe(201);
       expect(response.body).toMatchObject({
@@ -213,7 +215,7 @@ describe('Schema Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Name and schema are required');
+      expect(response.body.error).toBe('Name, type, and schema are required');
     });
 
     it('should return 400 if schema is missing', async () => {
@@ -224,7 +226,7 @@ describe('Schema Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Name and schema are required');
+      expect(response.body.error).toBe('Name, type, and schema are required');
     });
   });
 

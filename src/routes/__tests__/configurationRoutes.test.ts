@@ -43,6 +43,7 @@ describe('Configuration Routes', () => {
   const mockConfiguration: Configuration = {
     id: 'config-id-1',
     schemaId: 'test-schema-id',
+    type: 'signal',
     name: 'Test Config',
     data: { name: 'John Doe', age: 30 },
     createdAt: new Date(),
@@ -126,11 +127,12 @@ describe('Configuration Routes', () => {
 
       const response = await request(app)
         .post('/api/configurations')
-        .send({
-          schemaId: 'test-schema-id',
-          name: 'Test Config',
-          data: { name: 'John Doe', age: 30 },
-        });
+              .send({
+                schemaId: 'test-schema-id',
+                type: 'signal',
+                name: 'Test Config',
+                data: { name: 'John Doe', age: 30 },
+              });
 
       expect(response.status).toBe(201);
       expect(response.body).toMatchObject({
@@ -150,7 +152,7 @@ describe('Configuration Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('SchemaId, name, and data are required');
+      expect(response.body.error).toBe('SchemaId, type, name, and data are required');
     });
 
     it('should return 400 if name is missing', async () => {
@@ -158,11 +160,12 @@ describe('Configuration Routes', () => {
         .post('/api/configurations')
         .send({
           schemaId: 'test-schema-id',
+          type: 'signal',
           data: {},
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('SchemaId, name, and data are required');
+      expect(response.body.error).toBe('SchemaId, type, name, and data are required');
     });
 
     it('should return 400 if data is missing', async () => {
@@ -170,11 +173,12 @@ describe('Configuration Routes', () => {
         .post('/api/configurations')
         .send({
           schemaId: 'test-schema-id',
+          type: 'signal',
           name: 'Test Config',
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('SchemaId, name, and data are required');
+      expect(response.body.error).toBe('SchemaId, type, name, and data are required');
     });
 
     it('should return 400 on validation error', async () => {
@@ -186,6 +190,7 @@ describe('Configuration Routes', () => {
         .post('/api/configurations')
         .send({
           schemaId: 'test-schema-id',
+          type: 'signal',
           name: 'Test Config',
           data: {},
         });

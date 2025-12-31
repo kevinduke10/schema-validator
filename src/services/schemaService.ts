@@ -25,19 +25,45 @@ export class SchemaService {
    * Create a new schema (version 1, active by default)
    */
   static async createSchema(schemaData: Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>): Promise<Schema> {
+    return this.createSchemaWithVersion(schemaData, 1, true);
+  }
+
+  /**
+   * Create a schema with a specific version and active status
+   * Used for preloading schemas with specific versions
+   */
+  static async createSchemaWithVersion(
+    schemaData: Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>,
+    version: number,
+    active: boolean = false,
+    schemaId?: string
+  ): Promise<Schema> {
     // Validate the schema itself
     const isValidSchema = ajv.validateSchema(schemaData.schema);
     if (!isValidSchema) {
       throw new Error(`Invalid JSON Schema: ${ajv.errorsText(ajv.errors)}`);
     }
 
-    const schemaId = this.generateSchemaId();
+    // Use provided schemaId or generate a new one
+    const finalSchemaId = schemaId || this.generateSchemaId();
+
+    // Check if schema with this schemaId and version already exists
+    const existing = await getSchemaRepository().findBySchemaIdAndVersion(finalSchemaId, version);
+    if (existing) {
+      throw new Error(`Schema with schemaId ${finalSchemaId} and version ${version} already exists`);
+    }
+
     const schemaWithVersion = {
       ...schemaData,
-      schemaId,
-      version: 1,
-      active: true,
+      schemaId: finalSchemaId,
+      version,
+      active,
     };
+
+    // If this version should be active, deactivate all other versions first
+    if (active) {
+      await getSchemaRepository().setAllInactiveBySchemaId(finalSchemaId);
+    }
 
     // Save to database
     const schema = await getSchemaRepository().create(schemaWithVersion);

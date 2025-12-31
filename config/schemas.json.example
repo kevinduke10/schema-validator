@@ -2,6 +2,8 @@
   {
     "name": "Temperature Signal Schema",
     "type": "signal",
+    "version": 1,
+    "active": true,
     "description": "Schema for temperature signal data",
     "schema": {
       "type": "object",
@@ -28,6 +30,8 @@
   {
     "name": "Data Aggregator Post-Processor",
     "type": "post-processor",
+    "version": 1,
+    "active": true,
     "description": "Schema for data aggregation post-processor",
     "schema": {
       "type": "object",

@@ -1,0 +1,13 @@
+{
+  "schemaName": "Data Aggregator Post-Processor",
+  "type": "post-processor",
+  "schemaVersion": 1,
+  "name": "Hourly Average Aggregator",
+  "data": {
+    "aggregationType": "average",
+    "windowSize": 1,
+    "windowUnit": "hours",
+    "outputFormat": "json"
+  }
+}
+
