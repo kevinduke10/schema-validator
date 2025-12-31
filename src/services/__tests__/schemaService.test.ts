@@ -87,7 +87,7 @@ describe('SchemaService', () => {
     it('should create a new schema with version 1 and active=true', async () => {
       const schemaData = {
         name: 'Test Schema',
-        type: 'signal',
+        type: 'signal' as const,
         description: 'Test Description',
         schema: {
           type: 'object',
@@ -117,7 +117,7 @@ describe('SchemaService', () => {
     it('should throw error for invalid JSON schema', async () => {
       const invalidSchemaData = {
         name: 'Test Schema',
-        type: 'signal',
+        type: 'signal' as const,
         schema: { type: 'invalid-type' } as JSONSchema,
       };
 
