@@ -37,6 +37,7 @@ const mockConfigRepositoryMethods = {
   update: jest.fn(),
   delete: jest.fn(),
   findBySchemaId: jest.fn(),
+  findByNameAndSchemaId: jest.fn(),
 };
 
 jest.mock('../../database/repositories/configurationRepository', () => {
@@ -107,6 +108,8 @@ describe('ConfigurationService', () => {
         data: { name: 'John Doe', age: 30 },
       };
 
+      // Mock the duplicate name check to return null (no duplicate)
+      mockConfigRepositoryMethods.findByNameAndSchemaId.mockResolvedValue(null);
       mockSchemaServiceMethods.getActiveSchemaBySchemaId.mockResolvedValue(mockSchema);
       mockSchemaServiceMethods.validateData.mockResolvedValue({ valid: true });
       mockConfigRepositoryMethods.create.mockResolvedValue(mockConfiguration);
@@ -120,6 +123,8 @@ describe('ConfigurationService', () => {
     });
 
     it('should throw error if active schema not found', async () => {
+      // Mock the duplicate name check to return null (no duplicate)
+      mockConfigRepositoryMethods.findByNameAndSchemaId.mockResolvedValue(null);
       mockSchemaServiceMethods.getActiveSchemaBySchemaId.mockResolvedValue(null);
 
       await expect(
@@ -140,6 +145,8 @@ describe('ConfigurationService', () => {
         data: {}, // Missing required 'name' field
       };
 
+      // Mock the duplicate name check to return null (no duplicate)
+      mockConfigRepositoryMethods.findByNameAndSchemaId.mockResolvedValue(null);
       mockSchemaServiceMethods.getActiveSchemaBySchemaId.mockResolvedValue(mockSchema);
       mockSchemaServiceMethods.validateData.mockResolvedValue({
         valid: false,
@@ -148,6 +155,22 @@ describe('ConfigurationService', () => {
 
       await expect(ConfigurationService.createConfiguration(configData)).rejects.toThrow(
         'Configuration data does not conform to schema'
+      );
+    });
+
+    it('should throw error if configuration name already exists (case-insensitive)', async () => {
+      const configData = {
+        schemaId: 'test-schema-id',
+        type: 'signal',
+        name: 'Test Config',
+        data: { name: 'John Doe', age: 30 },
+      };
+
+      // Mock finding an existing configuration with same name (case-insensitive)
+      mockConfigRepositoryMethods.findByNameAndSchemaId.mockResolvedValue(mockConfiguration);
+
+      await expect(ConfigurationService.createConfiguration(configData)).rejects.toThrow(
+        "Configuration with name 'Test Config' for schema 'test-schema-id' already exists"
       );
     });
   });
@@ -197,17 +220,25 @@ describe('ConfigurationService', () => {
 
   describe('updateConfiguration', () => {
     it('should update configuration when data is valid', async () => {
-      const updatedConfig = { ...mockConfiguration, name: 'Updated Name' };
+      const updatedConfig = { ...mockConfiguration, data: { name: 'Jane Doe', age: 25 } };
       (mockConfigRepositoryMethods.findById as jest.Mock).mockResolvedValue(mockConfiguration);
       (mockSchemaServiceMethods.validateData as jest.Mock).mockResolvedValue({ valid: true });
       (mockConfigRepositoryMethods.update as jest.Mock).mockResolvedValue(updatedConfig);
 
       const result = await ConfigurationService.updateConfiguration('config-id-1', {
-        name: 'Updated Name',
+        data: { name: 'Jane Doe', age: 25 },
       });
 
       expect(result).toEqual(updatedConfig);
       expect(mockConfigRepositoryMethods.update).toHaveBeenCalled();
+    });
+
+    it('should throw error if trying to update name', async () => {
+      await expect(
+        ConfigurationService.updateConfiguration('config-id-1', {
+          name: 'Updated Name',
+        })
+      ).rejects.toThrow('Configuration name cannot be updated. Name is used for uniqueness checks.');
     });
 
     it('should validate data when updating', async () => {
@@ -240,7 +271,7 @@ describe('ConfigurationService', () => {
       (mockConfigRepositoryMethods.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await ConfigurationService.updateConfiguration('non-existent', {
-        name: 'New Name',
+        data: { name: 'Test', age: 30 },
       });
 
       expect(result).toBeNull();

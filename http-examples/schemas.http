@@ -4,7 +4,8 @@
 @apiPath = {{baseUrl}}/api/schemas
 
 ### Variables
-@schemaId = test-schema-id-123
+# After creating a schema, copy the "schemaId" from the response and update this variable
+@schemaId = schema_1767204522905_ww999jged
 
 ###############################################
 # CREATE SCHEMAS
@@ -148,11 +149,11 @@ GET {{apiPath}}/{{schemaId}}/versions/1
 
 ### Update Schema - Creates Version 2
 # This will create a new version and set it as active
-PUT {{apiPath}}/{{schemaId}}
+# Note: Name cannot be updated - it's used for uniqueness checks
+PUT {{apiPath}}/schema_1767204522905_ww999jged
 Content-Type: application/json
 
 {
-  "name": "Signal Schema Updated",
   "type": "signal",
   "description": "Updated schema with new fields",
   "schema": {
@@ -193,12 +194,22 @@ Content-Type: application/json
 }
 
 ### Update Schema Type (Creates New Version)
+# Note: Name cannot be updated - it's used for uniqueness checks
 PUT {{apiPath}}/{{schemaId}}
 Content-Type: application/json
 
 {
-  "name": "Signal Schema v2",
-  "type": "signal"
+  "type": "signal",
+  "description": "Updated description"
+}
+
+### Try to Update Schema Name (Will Fail)
+# This should return 400 Bad Request
+PUT {{apiPath}}/{{schemaId}}
+Content-Type: application/json
+
+{
+  "name": "New Schema Name"
 }
 
 ###############################################
@@ -259,7 +270,17 @@ Content-Type: application/json
 # DELETE
 ###############################################
 
+### Delete All Schemas
+# Only deletes schemas that don't have associated configurations
+# Returns: { deleted, skipped, errors }
+DELETE {{apiPath}}
+
 ### Delete All Versions of a Schema
+# Note: Will return 409 Conflict if schema has associated configurations
+DELETE {{apiPath}}/{{schemaId}}
+
+### Try to Delete Schema with Configurations
+# This should return 409 Conflict
 DELETE {{apiPath}}/{{schemaId}}
 
 ###############################################

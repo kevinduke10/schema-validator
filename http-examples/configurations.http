@@ -4,8 +4,13 @@
 @apiPath = {{baseUrl}}/api/configurations
 
 ### Variables
-# Replace these with actual IDs from your schema creation
-@schemaId = test-schema-id-123
+# IMPORTANT: Replace these with actual IDs from your schema creation
+# 1. Create schemas using POST /api/schemas (see schemas.http)
+#    - Create a Signal Schema and copy its "schemaId" to @signalSchemaId
+#    - Create a Post-Processor Schema and copy its "schemaId" to @postProcessorSchemaId
+# 2. After creating a configuration, copy its "id" and update @configurationId
+@signalSchemaId = schema_1767204522905_ww999jged
+@postProcessorSchemaId = schema_1767204545141_fo865s3te
 @configurationId = config-id-123
 
 ###############################################
@@ -13,12 +18,12 @@
 ###############################################
 
 ### Create a Signal Configuration
-# Note: schemaId must match an existing active schema
+# Note: schemaId must match an existing active signal schema
 POST {{apiPath}}
 Content-Type: application/json
 
 {
-  "schemaId": "{{schemaId}}",
+  "schemaId": "{{signalSchemaId}}",
   "type": "signal",
   "name": "Temperature Signal",
   "data": {
@@ -30,18 +35,22 @@ Content-Type: application/json
 }
 
 ### Create a Post-Processor Configuration
+# Note: schemaId must match an existing active post-processor schema
+# IMPORTANT: You must create a post-processor schema first (see schemas.http)
+# and update @postProcessorSchemaId variable above
+# The data must match the schema structure (requires "name" and "price")
 POST {{apiPath}}
 Content-Type: application/json
 
 {
-  "schemaId": "{{schemaId}}",
+  "schemaId": "{{postProcessorSchemaId}}",
   "type": "post-processor",
   "name": "Data Aggregator",
   "data": {
-    "name": "Jane Smith",
-    "email": "jane.smith@example.com",
-    "age": 28,
-    "active": true
+    "name": "Product Aggregator",
+    "price": 99.99,
+    "inStock": true,
+    "category": "electronics"
   }
 }
 
@@ -99,7 +108,7 @@ Content-Type: application/json
 GET {{apiPath}}
 
 ### Get Configurations by Schema ID
-GET {{apiPath}}?schemaId={{schemaId}}
+GET {{apiPath}}?schemaId={{signalSchemaId}}
 
 ### Get Configurations by Type (Signal)
 GET {{apiPath}}?type=signal
@@ -108,7 +117,7 @@ GET {{apiPath}}?type=signal
 GET {{apiPath}}?type=post-processor
 
 ### Get Configurations by Schema ID and Type
-GET {{apiPath}}?schemaId={{schemaId}}&type=signal
+GET {{apiPath}}?schemaId={{signalSchemaId}}&type=signal
 
 ### Get Configuration by ID
 GET {{apiPath}}/{{configurationId}}
@@ -117,12 +126,12 @@ GET {{apiPath}}/{{configurationId}}
 # UPDATE CONFIGURATIONS
 ###############################################
 
-### Update Configuration Name and Type
+### Update Configuration Type
+# Note: Name cannot be updated - it's used for uniqueness checks
 PUT {{apiPath}}/{{configurationId}}
 Content-Type: application/json
 
 {
-  "name": "Temperature Signal - Updated",
   "type": "signal"
 }
 
@@ -140,18 +149,13 @@ Content-Type: application/json
   }
 }
 
-### Update Both Name and Data
+### Try to Update Configuration Name (Will Fail)
+# This should return 400 Bad Request
 PUT {{apiPath}}/{{configurationId}}
 Content-Type: application/json
 
 {
-  "name": "John Doe - Senior",
-  "data": {
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "age": 35,
-    "active": true
-  }
+  "name": "Updated Configuration Name"
 }
 
 ###############################################
@@ -168,6 +172,11 @@ POST {{apiPath}}/{{configurationId}}/validate
 # DELETE
 ###############################################
 
+### Delete All Configurations
+# Deletes all configurations
+# Returns: { message, deleted }
+DELETE {{apiPath}}
+
 ### Delete a Configuration
 DELETE {{apiPath}}/{{configurationId}}
 
@@ -181,7 +190,7 @@ POST {{apiPath}}
 Content-Type: application/json
 
 {
-  "schemaId": "{{schemaId}}",
+  "schemaId": "{{signalSchemaId}}",
   "type": "signal",
   "name": "Invalid Signal",
   "data": {

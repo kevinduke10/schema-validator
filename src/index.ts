@@ -6,6 +6,7 @@ import { dbConnection } from './database/connection';
 import { SchemaRepository } from './database/repositories/schemaRepository';
 import { ConfigurationRepository } from './database/repositories/configurationRepository';
 import { ConfigLoader } from './services/configLoader';
+import { NotificationService } from './services/notificationService';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -59,6 +60,9 @@ async function startServer() {
     await schemaRepo.createIndexes();
     await configRepo.createIndexes();
     
+    // Initialize RabbitMQ notification service (if configured)
+    await NotificationService.initialize();
+    
     // Load preconfigured schemas and configurations from ConfigMap
     await ConfigLoader.initialize();
     
@@ -78,12 +82,14 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
+  await NotificationService.disconnect();
   await dbConnection.disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down gracefully...');
+  await NotificationService.disconnect();
   await dbConnection.disconnect();
   process.exit(0);
 });

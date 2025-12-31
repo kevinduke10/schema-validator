@@ -30,21 +30,31 @@ npm install
 
 2. Set up MongoDB using Docker Compose (recommended for local development):
    ```bash
-   # Start MongoDB container
+   # Start MongoDB and Mongo Express containers
    docker compose up -d
    
-   # Check if MongoDB is running
+   # Check if containers are running
    docker compose ps
    
    # View MongoDB logs
    docker compose logs -f mongodb
    
-   # Stop MongoDB container
+   # View Mongo Express logs
+   docker compose logs -f mongo-express
+   
+   # Stop containers
    docker compose down
    
    # Stop and remove volumes (clean slate)
    docker compose down -v
    ```
+
+   **Mongo Express Web UI**: After starting the containers, access the MongoDB web interface at:
+   - URL: http://localhost:8081
+   - Username: `admin`
+   - Password: `admin`
+   
+   You can browse databases, collections, and documents through the web interface.
 
 3. Set up environment variables:
    - Create a `.env` file in the root directory
@@ -113,12 +123,12 @@ The server will start on `http://localhost:3000` by default.
 
 ## API Testing
 
-The project includes sample HTTP request files for easy API testing:
+The project includes sample HTTP request files for easy API testing in the `http-examples/` folder:
 
-- `schemas.http` - Sample requests for schema CRUD operations and versioning
-- `configurations.http` - Sample requests for configuration CRUD operations
+- `http-examples/schemas.http` - Sample requests for schema CRUD operations and versioning
+- `http-examples/configurations.http` - Sample requests for configuration CRUD operations
 
-These files can be used with REST Client extensions in VS Code or similar tools. Simply update the variables at the top of each file with your actual schema/configuration IDs.
+These files can be used with REST Client extensions in VS Code/Cursor or similar tools. Simply update the variables at the top of each file with your actual schema/configuration IDs.
 
 ## API Endpoints
 
@@ -369,8 +379,9 @@ schema-validator/
 ├── .dockerignore               # Docker ignore file
 ├── docker-compose.yml           # Docker Compose configuration
 ├── Dockerfile                   # Multi-stage Dockerfile for production
-├── schemas.http                 # Sample HTTP requests for schemas
-├── configurations.http          # Sample HTTP requests for configurations
+├── http-examples/               # HTTP request examples
+│   ├── schemas.http             # Sample HTTP requests for schemas
+│   └── configurations.http      # Sample HTTP requests for configurations
 ├── package.json
 ├── tsconfig.json
 └── README.md

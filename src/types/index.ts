@@ -2,7 +2,8 @@
 export type JSONSchema = Record<string, any>;
 
 // Schema and Configuration types - re-export from constants
-export type { SchemaType } from '../constants/types';
+import type { SchemaType } from '../constants/types';
+export type { SchemaType };
 
 export interface Schema {
   id: string;

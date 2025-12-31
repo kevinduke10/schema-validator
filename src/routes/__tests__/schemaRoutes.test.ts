@@ -232,13 +232,13 @@ describe('Schema Routes', () => {
 
   describe('PUT /api/schemas/:schemaId', () => {
     it('should update schema and create new version', async () => {
-      const newVersion = createMockSchema({ version: 2, id: 'test-id-2' });
+      const newVersion = createMockSchema({ version: 2, id: 'test-id-2', description: 'Updated Description' });
       (SchemaService.updateSchemaBySchemaId as jest.Mock).mockResolvedValue(newVersion);
 
       const response = await request(app)
         .put('/api/schemas/test-schema-id')
         .send({
-          name: 'Updated Name',
+          description: 'Updated Description',
         });
 
       expect(response.status).toBe(200);
@@ -246,6 +246,17 @@ describe('Schema Routes', () => {
         id: newVersion.id,
         version: newVersion.version,
       });
+    });
+
+    it('should return 400 if trying to update name', async () => {
+      const response = await request(app)
+        .put('/api/schemas/test-schema-id')
+        .send({
+          name: 'Updated Name',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Schema name cannot be updated. Name is used for uniqueness checks.');
     });
 
     it('should return 400 on validation error', async () => {

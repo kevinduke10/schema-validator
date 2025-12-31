@@ -78,9 +78,14 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { name, type, data } = req.body as UpdateConfigurationRequest;
+    
+    // Prevent name updates - name is used for uniqueness checks
+    if (name !== undefined) {
+      return res.status(400).json({ error: 'Configuration name cannot be updated. Name is used for uniqueness checks.' });
+    }
+
     const updates: any = {};
 
-    if (name !== undefined) updates.name = name;
     if (type !== undefined) {
       // Validate type
       const validTypes: string[] = ['signal', 'post-processor'];
@@ -99,6 +104,22 @@ router.put('/:id', async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/configurations
+ * Delete all configurations
+ */
+router.delete('/', async (req: Request, res: Response) => {
+  try {
+    const deletedCount = await ConfigurationService.deleteAllConfigurations();
+    res.json({
+      message: `Deleted ${deletedCount} configuration(s)`,
+      deleted: deletedCount,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

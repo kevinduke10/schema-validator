@@ -44,6 +44,7 @@ const mockRepositoryMethods = {
   setVersionActive: jest.fn(),
   getNextVersion: jest.fn(),
   deleteAllVersionsBySchemaId: jest.fn(),
+  findByNameAndType: jest.fn(),
 };
 
 jest.mock('../../database/repositories/schemaRepository', () => {
@@ -94,6 +95,8 @@ describe('SchemaService', () => {
         } as JSONSchema,
       };
 
+      // Mock the duplicate name check to return null (no duplicate)
+      mockRepositoryMethods.findByNameAndType.mockResolvedValue(null);
       mockRepositoryMethods.create.mockResolvedValue(mockSchema);
 
       const result = await SchemaService.createSchema(schemaData);
@@ -198,10 +201,12 @@ describe('SchemaService', () => {
       (mockRepositoryMethods.findActiveBySchemaId as jest.Mock).mockResolvedValue(existingSchema);
       (mockRepositoryMethods.getNextVersion as jest.Mock).mockResolvedValue(2);
       (mockRepositoryMethods.setAllInactiveBySchemaId as jest.Mock).mockResolvedValue(undefined);
+      // Mock the duplicate name check to return null (no duplicate for update)
+      mockRepositoryMethods.findByNameAndType.mockResolvedValue(null);
       (mockRepositoryMethods.create as jest.Mock).mockResolvedValue(newVersion);
 
       const updates = {
-        name: 'Updated Name',
+        description: 'Updated Description',
         schema: {
           type: 'object',
           properties: { name: { type: 'string' }, email: { type: 'string' } },
@@ -216,11 +221,20 @@ describe('SchemaService', () => {
       expect(mockRepositoryMethods.create).toHaveBeenCalled();
     });
 
+    it('should throw error if trying to update name', async () => {
+      const existingSchema = mockSchema;
+      (mockRepositoryMethods.findActiveBySchemaId as jest.Mock).mockResolvedValue(existingSchema);
+
+      await expect(
+        SchemaService.updateSchemaBySchemaId('test-schema-id', { name: 'Updated Name' })
+      ).rejects.toThrow('Schema name cannot be updated. Name is used for uniqueness checks.');
+    });
+
     it('should throw error if schema not found', async () => {
       (mockRepositoryMethods.findActiveBySchemaId as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        SchemaService.updateSchemaBySchemaId('non-existent', { name: 'New Name' })
+        SchemaService.updateSchemaBySchemaId('non-existent', { description: 'New Description' })
       ).rejects.toThrow('Schema with schemaId non-existent not found');
     });
   });

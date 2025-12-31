@@ -2,10 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SchemaService } from './schemaService';
 import { ConfigurationService } from './configurationService';
+import { SchemaRepository } from '../database/repositories/schemaRepository';
 import { ConfigurationRepository } from '../database/repositories/configurationRepository';
 import { Schema, Configuration, SchemaType } from '../types';
 
-// Lazy getter for configuration repository
+// Lazy getters for repositories
+const getSchemaRepository = () => SchemaRepository.getInstance();
 const getConfigurationRepository = () => ConfigurationRepository.getInstance();
 
 interface PreconfiguredSchema {
@@ -163,12 +165,9 @@ export class ConfigLoader {
             continue;
           }
         } else {
-          // If no schemaId provided, check if schema with same name/type exists
+          // If no schemaId provided, check if schema with same name/type exists (case-insensitive)
           // If it exists, use its schemaId; otherwise create new
-          const existingSchemas = await SchemaService.getAllSchemas();
-          const existing = existingSchemas.find(
-            s => s.name === schemaData.name && s.type === schemaData.type
-          );
+          const existing = await getSchemaRepository().findByNameAndType(schemaData.name, schemaData.type);
 
           if (existing) {
             // Schema exists, check if this version already exists
@@ -327,11 +326,8 @@ export class ConfigLoader {
           schema = activeSchema;
         }
 
-        // Check if configuration already exists by name and schemaId
-        const existingConfigs = await ConfigurationService.getAllConfigurations();
-        const existing = existingConfigs.find(
-          c => c.name === configData.name && c.schemaId === schema.schemaId
-        );
+        // Check if configuration already exists by name and schemaId (case-insensitive)
+        const existing = await getConfigurationRepository().findByNameAndSchemaId(configData.name, schema.schemaId);
 
         if (existing) {
           console.log(`Configuration '${configData.name}' already exists. Skipping.`);

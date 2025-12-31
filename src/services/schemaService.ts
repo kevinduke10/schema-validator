@@ -2,6 +2,8 @@ import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { Schema } from '../types';
 import { SchemaRepository } from '../database/repositories/schemaRepository';
+import { ConfigurationService } from './configurationService';
+import { NotificationService } from './notificationService';
 
 // In-memory cache for compiled validators (for performance)
 const validators: Map<string, ValidateFunction> = new Map();
@@ -44,6 +46,12 @@ export class SchemaService {
       throw new Error(`Invalid JSON Schema: ${ajv.errorsText(ajv.errors)}`);
     }
 
+    // Check for duplicate name (case-insensitive) with same type
+    const existingByName = await getSchemaRepository().findByNameAndType(schemaData.name, schemaData.type);
+    if (existingByName) {
+      throw new Error(`Schema with name '${schemaData.name}' and type '${schemaData.type}' already exists`);
+    }
+
     // Use provided schemaId or generate a new one
     const finalSchemaId = schemaId || this.generateSchemaId();
 
@@ -76,6 +84,9 @@ export class SchemaService {
       // If compilation fails, still save the schema but log the error
       console.warn(`Failed to compile schema ${schema.id}: ${error.message}`);
     }
+
+    // Publish notification
+    await NotificationService.notifySchemaCreated(schema);
 
     return schema;
   }
@@ -164,6 +175,11 @@ export class SchemaService {
    * Update a schema by schemaId (creates a new version)
    */
   static async updateSchemaBySchemaId(schemaId: string, updates: Partial<Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>>): Promise<Schema> {
+    // Prevent name updates - name is used for uniqueness checks
+    if (updates.name !== undefined) {
+      throw new Error('Schema name cannot be updated. Name is used for uniqueness checks.');
+    }
+
     // Get the existing schema to preserve fields
     const existing = await getSchemaRepository().findActiveBySchemaId(schemaId);
     if (!existing) {
@@ -205,6 +221,9 @@ export class SchemaService {
       throw new Error(`Failed to compile schema: ${error.message}`);
     }
 
+    // Publish notification
+    await NotificationService.notifySchemaUpdated(newVersion);
+
     return newVersion;
   }
 
@@ -241,8 +260,15 @@ export class SchemaService {
 
   /**
    * Delete all versions of a schema by schemaId
+   * Throws error if schema has associated configurations
    */
   static async deleteAllVersionsBySchemaId(schemaId: string): Promise<number> {
+    // Check if any configurations are using this schema
+    const configurations = await ConfigurationService.getConfigurationsBySchemaId(schemaId);
+    if (configurations.length > 0) {
+      throw new Error(`Cannot delete schema: ${configurations.length} configuration(s) are using this schema`);
+    }
+
     // Get all versions to clear validators
     const versions = await getSchemaRepository().findAllVersionsBySchemaId(schemaId);
     const deletedCount = await getSchemaRepository().deleteAllVersionsBySchemaId(schemaId);
@@ -251,8 +277,40 @@ export class SchemaService {
     versions.forEach(version => {
       validators.delete(version.id);
     });
-    
+
+    // Publish notification
+    await NotificationService.notifySchemaDeleted(schemaId, deletedCount);
+
     return deletedCount;
+  }
+
+  /**
+   * Delete all schemas
+   * Only deletes schemas that don't have associated configurations
+   * Returns count of deleted schemas
+   */
+  static async deleteAllSchemas(): Promise<{ deleted: number; skipped: number; errors: string[] }> {
+    const allSchemas = await this.getAllSchemas();
+    const schemaIds = [...new Set(allSchemas.map(s => s.schemaId))];
+    
+    let deleted = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const schemaId of schemaIds) {
+      try {
+        const deletedCount = await this.deleteAllVersionsBySchemaId(schemaId);
+        deleted += deletedCount;
+      } catch (error: any) {
+        if (error.message.includes('configuration(s) are using this schema')) {
+          skipped++;
+        } else {
+          errors.push(`Schema ${schemaId}: ${error.message}`);
+        }
+      }
+    }
+
+    return { deleted, skipped, errors };
   }
 
   /**

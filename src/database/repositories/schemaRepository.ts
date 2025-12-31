@@ -55,6 +55,16 @@ export class SchemaRepository extends BaseRepository<Schema> {
   }
 
   /**
+   * Find schema by name and type (case-insensitive name)
+   */
+  async findByNameAndType(name: string, type: string): Promise<Schema | null> {
+    return this.findOne({
+      name: { $regex: new RegExp(`^${name}$`, 'i') },
+      type,
+    });
+  }
+
+  /**
    * Set all versions of a schema as inactive
    */
   async setAllInactiveBySchemaId(schemaId: string): Promise<void> {

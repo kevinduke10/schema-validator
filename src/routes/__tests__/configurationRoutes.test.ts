@@ -202,13 +202,13 @@ describe('Configuration Routes', () => {
 
   describe('PUT /api/configurations/:id', () => {
     it('should update a configuration', async () => {
-      const updated = { ...mockConfiguration, name: 'Updated Name' };
+      const updated = { ...mockConfiguration, data: { name: 'John Doe Updated', age: 31 } };
       (ConfigurationService.updateConfiguration as jest.Mock).mockResolvedValue(updated);
 
       const response = await request(app)
         .put('/api/configurations/config-id-1')
         .send({
-          name: 'Updated Name',
+          data: { name: 'John Doe Updated', age: 31 },
         });
 
       expect(response.status).toBe(200);
@@ -220,13 +220,24 @@ describe('Configuration Routes', () => {
       });
     });
 
+    it('should return 400 if trying to update name', async () => {
+      const response = await request(app)
+        .put('/api/configurations/config-id-1')
+        .send({
+          name: 'Updated Name',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Configuration name cannot be updated. Name is used for uniqueness checks.');
+    });
+
     it('should return 404 if configuration not found', async () => {
       (ConfigurationService.updateConfiguration as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app)
         .put('/api/configurations/non-existent')
         .send({
-          name: 'New Name',
+          data: { name: 'Test', age: 30 },
         });
 
       expect(response.status).toBe(404);

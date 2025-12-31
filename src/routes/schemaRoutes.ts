@@ -110,9 +110,14 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:schemaId', async (req: Request, res: Response) => {
   try {
     const { name, type, description, schema } = req.body as UpdateSchemaRequest;
+    
+    // Prevent name updates - name is used for uniqueness checks
+    if (name !== undefined) {
+      return res.status(400).json({ error: 'Schema name cannot be updated. Name is used for uniqueness checks.' });
+    }
+
     const updates: any = {};
 
-    if (name !== undefined) updates.name = name;
     if (type !== undefined) {
       // Validate type
       const validTypes: string[] = ['signal', 'post-processor'];
@@ -154,8 +159,27 @@ router.put('/:schemaId/active', async (req: Request, res: Response) => {
 });
 
 /**
+ * DELETE /api/schemas
+ * Delete all schemas (only those without associated configurations)
+ */
+router.delete('/', async (req: Request, res: Response) => {
+  try {
+    const result = await SchemaService.deleteAllSchemas();
+    res.json({
+      message: `Deleted ${result.deleted} schema(s), skipped ${result.skipped} schema(s) with configurations`,
+      deleted: result.deleted,
+      skipped: result.skipped,
+      errors: result.errors.length > 0 ? result.errors : undefined,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * DELETE /api/schemas/:schemaId
- * Delete all versions of a schema by schemaId
+ * Delete all versions of a schema
+ * Only allowed if schema has no associated configurations
  */
 router.delete('/:schemaId', async (req: Request, res: Response) => {
   try {
@@ -165,7 +189,11 @@ router.delete('/:schemaId', async (req: Request, res: Response) => {
     }
     res.json({ message: `Deleted ${deletedCount} version(s) of schema`, deletedCount });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    // Check if error is about configurations
+    if (error.message.includes('configuration(s) are using this schema')) {
+      return res.status(409).json({ error: error.message });
+    }
+    res.status(400).json({ error: error.message });
   }
 });
 

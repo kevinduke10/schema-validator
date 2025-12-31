@@ -1,6 +1,7 @@
 import { Configuration } from '../types';
 import { SchemaService } from './schemaService';
 import { ConfigurationRepository } from '../database/repositories/configurationRepository';
+import { NotificationService } from './notificationService';
 
 // Lazy getter for repository instance (initialized after DB connection)
 const getConfigurationRepository = () => ConfigurationRepository.getInstance();
@@ -10,6 +11,12 @@ export class ConfigurationService {
    * Create a new configuration object (validates against active schema version)
    */
   static async createConfiguration(configData: Omit<Configuration, 'id' | 'createdAt' | 'updatedAt'>): Promise<Configuration> {
+    // Check for duplicate name (case-insensitive) with same schemaId
+    const existingByName = await getConfigurationRepository().findByNameAndSchemaId(configData.name, configData.schemaId);
+    if (existingByName) {
+      throw new Error(`Configuration with name '${configData.name}' for schema '${configData.schemaId}' already exists`);
+    }
+
     // Validate that the active schema exists
     const schema = await SchemaService.getActiveSchemaBySchemaId(configData.schemaId);
     if (!schema) {
@@ -29,6 +36,10 @@ export class ConfigurationService {
 
     // Save to database
     const configuration = await getConfigurationRepository().create(configData);
+    
+    // Publish notification
+    await NotificationService.notifyConfigurationCreated(configuration);
+    
     return configuration;
   }
 
@@ -71,6 +82,11 @@ export class ConfigurationService {
    * Update a configuration
    */
   static async updateConfiguration(id: string, updates: Partial<Omit<Configuration, 'id' | 'createdAt' | 'schemaId'>>): Promise<Configuration | null> {
+    // Prevent name updates - name is used for uniqueness checks
+    if (updates.name !== undefined) {
+      throw new Error('Configuration name cannot be updated. Name is used for uniqueness checks.');
+    }
+
     const existing = await getConfigurationRepository().findById(id);
     if (!existing) {
       return null;
@@ -93,6 +109,12 @@ export class ConfigurationService {
     }
 
     const updated = await getConfigurationRepository().update(id, updates);
+    
+    // Publish notification if update was successful
+    if (updated) {
+      await NotificationService.notifyConfigurationUpdated(updated);
+    }
+    
     return updated;
   }
 
@@ -100,7 +122,34 @@ export class ConfigurationService {
    * Delete a configuration
    */
   static async deleteConfiguration(id: string): Promise<boolean> {
-    return await getConfigurationRepository().delete(id);
+    const deleted = await getConfigurationRepository().delete(id);
+    
+    // Publish notification if deletion was successful
+    if (deleted) {
+      await NotificationService.notifyConfigurationDeleted(id);
+    }
+    
+    return deleted;
+  }
+
+  /**
+   * Delete all configurations
+   * Returns count of deleted configurations
+   */
+  static async deleteAllConfigurations(): Promise<number> {
+    const allConfigs = await this.getAllConfigurations();
+    let deleted = 0;
+
+    for (const config of allConfigs) {
+      const result = await getConfigurationRepository().delete(config.id);
+      if (result) {
+        deleted++;
+        // Publish notification for each deleted configuration
+        await NotificationService.notifyConfigurationDeleted(config.id);
+      }
+    }
+
+    return deleted;
   }
 
   /**

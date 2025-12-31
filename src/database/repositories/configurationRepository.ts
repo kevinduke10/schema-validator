@@ -47,6 +47,16 @@ export class ConfigurationRepository extends BaseRepository<Configuration> {
   }
 
   /**
+   * Find configuration by name and schemaId (case-insensitive name)
+   */
+  async findByNameAndSchemaId(name: string, schemaId: string): Promise<Configuration | null> {
+    return this.findOne({
+      name: { $regex: new RegExp(`^${name}$`, 'i') },
+      schemaId,
+    });
+  }
+
+  /**
    * Create indexes for better query performance
    */
   async createIndexes(): Promise<void> {
