@@ -348,7 +348,12 @@ export class ConfigLoader {
         }
 
         // Create the configuration (store the schema's unique id, not schemaId)
+        // Generate configId and set version 1, active true
+        const configId = `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const configuration = await getConfigurationRepository().create({
+          configId,
+          version: 1,
+          active: true,
           schemaId: schema.id, // Store the schema's unique id
           type: configData.type,
           name: configData.name,

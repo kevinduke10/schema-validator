@@ -200,12 +200,21 @@
         <div class="config-header">
           <h3>{{ config.name }}</h3>
           <span class="badge" :class="config.type">{{ config.type }}</span>
+          <span v-if="config.active" class="badge active">Active</span>
+          <span class="version">v{{ config.version }}</span>
         </div>
         <p class="schema-id">Schema: {{ config.schemaId }}</p>
         <div class="config-actions">
           <button @click="viewConfig(config)" class="btn btn-sm">View</button>
           <button @click="startEdit(config)" class="btn btn-sm btn-edit">Edit</button>
           <button @click="startClone(config)" class="btn btn-sm btn-clone">Clone</button>
+          <button
+            v-if="!config.active"
+            @click="setActive(config)"
+            class="btn btn-sm btn-active"
+          >
+            Set Active
+          </button>
           <button @click="deleteConfig(config.id)" class="btn btn-sm btn-danger">Delete</button>
         </div>
       </div>
@@ -244,6 +253,7 @@ export default {
     const configJson = ref('{}');
     const editConfig = ref({
       id: '',
+      configId: '',
       schemaId: '',
       schemaVersionId: '', // Store the selected schema's unique ID to track which version was selected
       type: '',
@@ -344,7 +354,7 @@ export default {
       
       // config.schemaId now contains the schema's unique id (not schemaId that groups versions)
       // Find the schema by its unique id
-      const matchingSchema = allSchemas.value.find(s => s.id === config.schemaId);
+      const matchingSchema = enabledSchemas.value.find(s => s.id === config.schemaId);
       
       if (!matchingSchema) {
         updateError.value = 'Schema referenced by this configuration not found. It may have been deleted.';
@@ -353,8 +363,9 @@ export default {
       
       editConfig.value = {
         id: config.id,
+        configId: config.configId || config.id, // Use configId if available, fallback to id for backward compat
         schemaId: config.schemaId, // This is the schema's unique id
-        schemaVersionId: matchingSchema.id, // Same as schemaId, but used for the dropdown
+        schemaVersionId: matchingSchema ? matchingSchema.id : config.schemaId, // Use matching schema or fallback
         type: config.type,
         name: config.name,
       };
@@ -402,7 +413,7 @@ export default {
         }
 
         await store.dispatch('updateConfiguration', {
-          id: editConfig.value.id,
+          configId: editConfig.value.configId || currentConfig.configId || currentConfig.id,
           updates: {
             name: currentConfig.name, // Use the current configuration's name
             type: currentConfig.type, // Use the current configuration's type
@@ -413,7 +424,7 @@ export default {
 
         // Reset edit state on success
         editingConfig.value = null;
-        editConfig.value = { id: '', schemaId: '', type: '', name: '' };
+        editConfig.value = { id: '', configId: '', schemaId: '', schemaVersionId: '', type: '', name: '' };
         editConfigJson.value = '';
         updateError.value = '';
       } catch (error) {
@@ -443,9 +454,23 @@ export default {
 
     const cancelEdit = () => {
       editingConfig.value = null;
-      editConfig.value = { id: '', schemaId: '', schemaVersionId: '', type: '', name: '' };
+      editConfig.value = { id: '', configId: '', schemaId: '', schemaVersionId: '', type: '', name: '' };
       editConfigJson.value = '';
       updateError.value = '';
+    };
+
+    const setActive = async (config) => {
+      if (!confirm(`Are you sure you want to set configuration '${config.name}' (v${config.version}) as active? This will deactivate any other active versions for configId '${config.configId || config.id}'.`)) {
+        return;
+      }
+      try {
+        await store.dispatch('setActiveVersion', {
+          configId: config.configId || config.id,
+          version: config.version,
+        });
+      } catch (error) {
+        alert(error.message || 'Failed to set configuration as active');
+      }
     };
 
     const startClone = (config) => {
@@ -547,6 +572,7 @@ export default {
       handleClone,
       cancelClone,
       viewConfig,
+      setActive,
       deleteConfig,
     };
   },
@@ -752,6 +778,15 @@ export default {
   color: #666;
   font-size: 14px;
   margin: 10px 0;
+}
+
+.btn-active {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-active:hover {
+  background: #229954;
 }
 
 .config-actions {

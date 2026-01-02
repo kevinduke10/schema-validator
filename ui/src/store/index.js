@@ -46,10 +46,12 @@ export default createStore({
       state.configurations.push(configuration);
     },
     UPDATE_CONFIGURATION(state, updatedConfiguration) {
-      const index = state.configurations.findIndex(c => c.id === updatedConfiguration.id);
-      if (index !== -1) {
-        state.configurations[index] = updatedConfiguration;
-      }
+      // When updating a configuration, a new version is created with a new id
+      // Remove the old active version for this configId and add the new one
+      state.configurations = state.configurations.filter(c => 
+        !(c.configId === updatedConfiguration.configId && c.active)
+      );
+      state.configurations.push(updatedConfiguration);
     },
     REMOVE_CONFIGURATION(state, id) {
       state.configurations = state.configurations.filter(c => c.id !== id);
@@ -214,12 +216,28 @@ export default createStore({
         commit('SET_LOADING', false);
       }
     },
-    async updateConfiguration({ commit }, { id, updates }) {
+    async updateConfiguration({ commit, dispatch }, { configId, updates }) {
       commit('SET_LOADING', true);
       commit('SET_ERROR', null);
       try {
-        const response = await configurationsApi.update(id, updates);
+        const response = await configurationsApi.update(configId, updates);
         commit('UPDATE_CONFIGURATION', response.data);
+        await dispatch('fetchConfigurations'); // Refresh configurations to get latest data
+        return response.data;
+      } catch (error) {
+        commit('SET_ERROR', error.response?.data?.error || error.message);
+        throw error;
+      } finally {
+        commit('SET_LOADING', false);
+      }
+    },
+    async setActiveVersion({ commit, dispatch }, { configId, version }) {
+      commit('SET_LOADING', true);
+      commit('SET_ERROR', null);
+      try {
+        const response = await configurationsApi.setActiveVersion(configId, version);
+        commit('UPDATE_CONFIGURATION', response.data);
+        await dispatch('fetchConfigurations'); // Refresh configurations to get latest active status
         return response.data;
       } catch (error) {
         commit('SET_ERROR', error.response?.data?.error || error.message);

@@ -10,9 +10,16 @@ const getSchemaRepository = () => SchemaRepository.getInstance();
 
 export class ConfigurationService {
   /**
+   * Generate a unique configId
+   */
+  private static generateConfigId(): string {
+    return `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
    * Create a new configuration object (validates against active schema version)
    */
-  static async createConfiguration(configData: Omit<Configuration, 'id' | 'createdAt' | 'updatedAt'>): Promise<Configuration> {
+  static async createConfiguration(configData: Omit<Configuration, 'id' | 'configId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>): Promise<Configuration> {
     // configData.schemaId now contains the schema's unique id (not schemaId that groups versions)
     const schemaId = configData.schemaId;
     
@@ -39,8 +46,17 @@ export class ConfigurationService {
       throw new Error(`Configuration data does not conform to schema: ${validation.errors?.join(', ')}`);
     }
 
-    // Save to database (schemaId field stores the schema's unique id)
-    const configuration = await getConfigurationRepository().create(configData);
+    // Generate configId and create version 1
+    const configId = ConfigurationService.generateConfigId();
+    const configurationData = {
+      ...configData,
+      configId,
+      version: 1,
+      active: true,
+    };
+
+    // Save to database
+    const configuration = await getConfigurationRepository().create(configurationData);
     
     // Publish notification
     await NotificationService.notifyConfigurationCreated(configuration);
@@ -57,13 +73,16 @@ export class ConfigurationService {
 
   /**
    * Get configurations by schema ID (schema's unique id, not schemaId that groups versions)
+   * Returns only active configurations
    */
   static async getConfigurationsBySchemaId(schemaId: string): Promise<Configuration[]> {
-    return await getConfigurationRepository().findBySchemaId(schemaId);
+    const allConfigs = await getConfigurationRepository().findBySchemaId(schemaId);
+    return allConfigs.filter(config => config.active === true);
   }
 
   /**
    * Get configurations by schema's schemaId (the id that groups versions together)
+   * Returns only active configurations
    */
   static async getConfigurationsBySchemaSchemaId(schemaSchemaId: string): Promise<Configuration[]> {
     // Find all schemas with this schemaId
@@ -71,7 +90,7 @@ export class ConfigurationService {
     const schemaIds = schemas.map(s => s.id);
     // Find all configurations that reference any of these schema ids
     const allConfigs = await getConfigurationRepository().findAll();
-    return allConfigs.filter(config => schemaIds.includes(config.schemaId));
+    return allConfigs.filter(config => schemaIds.includes(config.schemaId) && config.active === true);
   }
 
   /**
@@ -96,12 +115,13 @@ export class ConfigurationService {
   }
 
   /**
-   * Update a configuration
+   * Update a configuration by configId (creates a new version)
    */
-  static async updateConfiguration(id: string, updates: Partial<Omit<Configuration, 'id' | 'createdAt'>>): Promise<Configuration | null> {
-    const existing = await getConfigurationRepository().findById(id);
+  static async updateConfigurationByConfigId(configId: string, updates: Partial<Omit<Configuration, 'id' | 'configId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>>): Promise<Configuration> {
+    // Get the existing active configuration to preserve fields and validate
+    const existing = await getConfigurationRepository().findActiveByConfigId(configId);
     if (!existing) {
-      return null;
+      throw new Error(`Configuration with configId ${configId} not found`);
     }
 
     // Validate that name matches if provided (name cannot be updated)
@@ -136,36 +156,90 @@ export class ConfigurationService {
       validationSchema = newSchema;
     }
 
-    // If data is being updated, validate against the schema
-    if (updates.data !== undefined) {
-      const validation = await SchemaService.validateDataByVersion(
-        validationSchema.schemaId, 
-        validationSchema.version, 
-        updates.data
-      );
-      if (!validation.valid) {
-        throw new Error(`Configuration data does not conform to schema: ${validation.errors?.join(', ')}`);
-      }
-    } else if (updates.schemaId !== undefined && updates.schemaId !== existing.schemaId) {
-      // If only schemaId is being updated, validate existing data against new schema
+    // Determine which data to use
+    const newData = updates.data !== undefined ? updates.data : existing.data;
+    const newSchemaId = updates.schemaId !== undefined ? updates.schemaId : existing.schemaId;
+
+    // If schemaId changed, re-validate the data against the new schema
+    if (updates.schemaId !== undefined && updates.schemaId !== existing.schemaId) {
       const validation = await SchemaService.validateDataByVersion(
         validationSchema.schemaId,
         validationSchema.version,
-        existing.data
+        newData
       );
       if (!validation.valid) {
         throw new Error(`Configuration data does not conform to new schema: ${validation.errors?.join(', ')}`);
       }
+    } else if (updates.data !== undefined) {
+      // If only data is being updated, validate against existing schema
+      const validation = await SchemaService.validateDataByVersion(
+        validationSchema.schemaId, 
+        validationSchema.version, 
+        newData
+      );
+      if (!validation.valid) {
+        throw new Error(`Configuration data does not conform to schema: ${validation.errors?.join(', ')}`);
+      }
     }
 
-    const updated = await getConfigurationRepository().update(id, updates);
+    // Get next version number
+    const nextVersion = await getConfigurationRepository().getNextVersion(configId);
+
+    // Create new version with updates (name and type come from existing, not updates)
+    const newVersionData = {
+      name: existing.name, // Always use existing name
+      type: existing.type, // Always use existing type
+      schemaId: newSchemaId,
+      data: newData,
+      configId,
+      version: nextVersion,
+      active: true, // New version is active by default
+    };
+
+    // Set all existing versions as inactive
+    await getConfigurationRepository().setAllInactiveByConfigId(configId);
+
+    // Create the new version
+    const newVersion = await getConfigurationRepository().create(newVersionData);
+
+    // Publish notification
+    await NotificationService.notifyConfigurationUpdated(newVersion);
+
+    return newVersion;
+  }
+
+  /**
+   * Set a specific version as active
+   */
+  static async setActiveVersion(configId: string, version: number): Promise<Configuration | null> {
+    const configuration = await getConfigurationRepository().setVersionActive(configId, version);
     
-    // Publish notification if update was successful
-    if (updated) {
-      await NotificationService.notifyConfigurationUpdated(updated);
+    if (configuration) {
+      await NotificationService.notifyConfigurationUpdated(configuration);
     }
     
-    return updated;
+    return configuration;
+  }
+
+  /**
+   * Get all versions of a configuration by configId
+   */
+  static async getAllVersionsByConfigId(configId: string): Promise<Configuration[]> {
+    return await getConfigurationRepository().findAllVersionsByConfigId(configId);
+  }
+
+  /**
+   * Get configuration by configId and version
+   */
+  static async getConfigurationByConfigIdAndVersion(configId: string, version: number): Promise<Configuration | null> {
+    return await getConfigurationRepository().findByConfigIdAndVersion(configId, version);
+  }
+
+  /**
+   * Get active configuration by configId
+   */
+  static async getActiveConfigurationByConfigId(configId: string): Promise<Configuration | null> {
+    return await getConfigurationRepository().findActiveByConfigId(configId);
   }
 
   /**

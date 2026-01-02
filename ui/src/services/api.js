@@ -28,8 +28,11 @@ export const configurationsApi = {
   getAll: () => api.get('/configurations'),
   getById: (id) => api.get(`/configurations/${id}`),
   getBySchemaId: (schemaId) => api.get(`/configurations?schemaId=${schemaId}`),
+  getAllVersions: (configId) => api.get(`/configurations/${configId}/versions`),
+  getByConfigIdAndVersion: (configId, version) => api.get(`/configurations/${configId}/versions/${version}`),
   create: (configData) => api.post('/configurations', configData),
-  update: (id, updates) => api.put(`/configurations/${id}`, updates),
+  update: (configId, updates) => api.put(`/configurations/${configId}`, updates),
+  setActiveVersion: (configId, version) => api.put(`/configurations/${configId}/active`, { version }),
   delete: (id) => api.delete(`/configurations/${id}`),
   deleteAll: () => api.delete('/configurations'),
 };

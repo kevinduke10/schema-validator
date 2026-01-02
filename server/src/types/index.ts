@@ -21,6 +21,9 @@ export interface Schema {
 
 export interface Configuration {
   id: string;
+  configId: string; // Groups all versions of the same configuration together
+  version: number;
+  active: boolean;
   schemaId: string; // Stores the schema's unique id (not schemaId that groups versions) - identifies specific schema version
   type: SchemaType;
   name: string;

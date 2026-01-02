@@ -72,15 +72,15 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
- * PUT /api/configurations/:id
- * Update a configuration
+ * PUT /api/configurations/:configId
+ * Update a configuration (creates a new version)
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:configId', async (req: Request, res: Response) => {
   try {
     const { name, type, schemaId, data } = req.body as UpdateConfigurationRequest;
     
-    // Get existing configuration to validate name and type match
-    const existing = await ConfigurationService.getConfigurationById(req.params.id);
+    // Get existing active configuration to validate name and type match
+    const existing = await ConfigurationService.getActiveConfigurationByConfigId(req.params.configId);
     if (!existing) {
       return res.status(404).json({ error: 'Configuration not found' });
     }
@@ -109,12 +109,30 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     if (data !== undefined) updates.data = data;
 
-    const updated = await ConfigurationService.updateConfiguration(req.params.id, updates);
-    if (!updated) {
-      return res.status(404).json({ error: 'Configuration not found' });
+    const updated = await ConfigurationService.updateConfigurationByConfigId(req.params.configId, updates);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/configurations/:configId/active
+ * Set a specific version as active
+ */
+router.put('/:configId/active', async (req: Request, res: Response) => {
+  try {
+    const { version } = req.body as { version: number };
+    if (version === undefined || typeof version !== 'number') {
+      return res.status(400).json({ error: 'Version number is required' });
     }
 
-    res.json(updated);
+    const configuration = await ConfigurationService.setActiveVersion(req.params.configId, version);
+    if (!configuration) {
+      return res.status(404).json({ error: 'Configuration version not found' });
+    }
+
+    res.json(configuration);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
