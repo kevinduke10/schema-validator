@@ -26,8 +26,8 @@ export class SchemaService {
   /**
    * Create a new schema (version 1, active by default)
    */
-  static async createSchema(schemaData: Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>): Promise<Schema> {
-    return this.createSchemaWithVersion(schemaData, 1, true);
+  static async createSchema(schemaData: Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'enabled' | 'createdAt' | 'updatedAt'>): Promise<Schema> {
+    return this.createSchemaWithVersion(schemaData, 1, true, undefined, true);
   }
 
   /**
@@ -35,10 +35,11 @@ export class SchemaService {
    * Used for preloading schemas with specific versions
    */
   static async createSchemaWithVersion(
-    schemaData: Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>,
+    schemaData: Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'enabled' | 'createdAt' | 'updatedAt'>,
     version: number,
     active: boolean = false,
-    schemaId?: string
+    schemaId?: string,
+    enabled: boolean = true
   ): Promise<Schema> {
     // Validate the schema itself
     const isValidSchema = ajv.validateSchema(schemaData.schema);
@@ -66,6 +67,7 @@ export class SchemaService {
       schemaId: finalSchemaId,
       version,
       active,
+      enabled,
     };
 
     // If this version should be active, deactivate all other versions first
@@ -175,15 +177,19 @@ export class SchemaService {
    * Update a schema by schemaId (creates a new version)
    */
   static async updateSchemaBySchemaId(schemaId: string, updates: Partial<Omit<Schema, 'id' | 'schemaId' | 'version' | 'active' | 'createdAt' | 'updatedAt'>>): Promise<Schema> {
-    // Prevent name updates - name is used for uniqueness checks
-    if (updates.name !== undefined) {
-      throw new Error('Schema name cannot be updated. Name is used for uniqueness checks.');
-    }
-
-    // Get the existing schema to preserve fields
+    // Get the existing schema to preserve fields and validate
     const existing = await getSchemaRepository().findActiveBySchemaId(schemaId);
     if (!existing) {
       throw new Error(`Schema with schemaId ${schemaId} not found`);
+    }
+
+    // Note: name and type validation is done in the route handler
+    // They should not be in updates object, but if they are, validate they match
+    if (updates.name !== undefined && updates.name !== existing.name) {
+      throw new Error('Schema name cannot be updated. Name is used for uniqueness checks.');
+    }
+    if (updates.type !== undefined && updates.type !== existing.type) {
+      throw new Error('Schema type cannot be updated. Type is used for uniqueness checks.');
     }
 
     // If schema is being updated, validate it
@@ -196,10 +202,10 @@ export class SchemaService {
     // Get next version number
     const nextVersion = await getSchemaRepository().getNextVersion(schemaId);
 
-    // Create new version with updates
+    // Create new version with updates (name and type come from existing, not updates)
     const newVersionData = {
-      name: updates.name ?? existing.name,
-      type: updates.type ?? existing.type,
+      name: existing.name, // Always use existing name
+      type: existing.type, // Always use existing type
       description: updates.description ?? existing.description,
       schema: newSchema,
       schemaId,
@@ -228,6 +234,23 @@ export class SchemaService {
   }
 
   /**
+   * Toggle enabled/disabled state of a schema
+   */
+  static async toggleSchemaEnabled(id: string, enabled: boolean): Promise<Schema | null> {
+    const schema = await getSchemaRepository().findById(id);
+    if (!schema) {
+      return null;
+    }
+
+    const updated = await getSchemaRepository().update(id, { enabled });
+    if (updated) {
+      // Publish notification
+      await NotificationService.notifySchemaUpdated(updated);
+    }
+    return updated;
+  }
+
+  /**
    * Set a specific version as active
    */
   static async setActiveVersion(schemaId: string, version: number): Promise<Schema | null> {
@@ -248,12 +271,27 @@ export class SchemaService {
 
   /**
    * Delete a schema by document ID
+   * Throws error if schema has associated configurations
    */
-  static async deleteSchema(id: string): Promise<boolean> {
+  static async deleteSchemaById(id: string): Promise<boolean> {
     const schema = await getSchemaRepository().findById(id);
+    if (!schema) {
+      return false;
+    }
+
+    // Check if any configurations are using this schema id
+    const allConfigs = await ConfigurationService.getAllConfigurations();
+    const usingConfigs = allConfigs.filter(config => config.schemaId === id);
+    
+    if (usingConfigs.length > 0) {
+      throw new Error(`Cannot delete schema: ${usingConfigs.length} configuration(s) are using this schema`);
+    }
+
     const deleted = await getSchemaRepository().delete(id);
-    if (deleted && schema) {
+    if (deleted) {
       validators.delete(id);
+      // Publish notification
+      await NotificationService.notifySchemaDeleted(schema.schemaId, 1);
     }
     return deleted;
   }
@@ -263,10 +301,17 @@ export class SchemaService {
    * Throws error if schema has associated configurations
    */
   static async deleteAllVersionsBySchemaId(schemaId: string): Promise<number> {
-    // Check if any configurations are using this schema
-    const configurations = await ConfigurationService.getConfigurationsBySchemaId(schemaId);
-    if (configurations.length > 0) {
-      throw new Error(`Cannot delete schema: ${configurations.length} configuration(s) are using this schema`);
+    // Check if any configurations are using any version of this schema
+    // Get all schema versions for this schemaId
+    const allVersions = await this.getAllVersionsBySchemaId(schemaId);
+    const schemaIds = allVersions.map(s => s.id);
+    
+    // Check if any configurations reference any of these schema ids
+    const allConfigs = await ConfigurationService.getAllConfigurations();
+    const usingConfigs = allConfigs.filter(config => schemaIds.includes(config.schemaId));
+    
+    if (usingConfigs.length > 0) {
+      throw new Error(`Cannot delete schema: ${usingConfigs.length} configuration(s) are using this schema`);
     }
 
     // Get all versions to clear validators

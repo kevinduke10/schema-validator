@@ -12,7 +12,7 @@ RUN npm ci --only=production=false
 
 # Copy source files
 COPY tsconfig.json ./
-COPY src ./src
+COPY server ./server
 
 # Build TypeScript
 RUN npm run build

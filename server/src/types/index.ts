@@ -10,6 +10,7 @@ export interface Schema {
   schemaId: string; // Groups all versions of the same schema together
   version: number;
   active: boolean;
+  enabled?: boolean; // Whether this schema is enabled (visible in configuration dropdowns), defaults to true
   type: SchemaType;
   name: string;
   description?: string;
@@ -20,7 +21,7 @@ export interface Schema {
 
 export interface Configuration {
   id: string;
-  schemaId: string;
+  schemaId: string; // Stores the schema's unique id (not schemaId that groups versions) - identifies specific schema version
   type: SchemaType;
   name: string;
   data: any;
@@ -56,6 +57,8 @@ export interface CreateConfigurationRequest {
 export interface UpdateConfigurationRequest {
   name?: string;
   type?: SchemaType;
+  schemaId?: string;
+  schemaVersion?: number; // Optional: specify which version of the schema to validate against
   data?: any;
 }
 

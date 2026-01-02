@@ -111,21 +111,34 @@ router.put('/:schemaId', async (req: Request, res: Response) => {
   try {
     const { name, type, description, schema } = req.body as UpdateSchemaRequest;
     
-    // Prevent name updates - name is used for uniqueness checks
+    // Get existing schema to validate name and type match
+    const existing = await SchemaService.getActiveSchemaBySchemaId(req.params.schemaId);
+    if (!existing) {
+      return res.status(404).json({ error: `Schema with schemaId ${req.params.schemaId} not found` });
+    }
+
+    // Validate that name and type match the existing schema (if provided)
+    // Use trim() to handle any whitespace issues
     if (name !== undefined) {
-      return res.status(400).json({ error: 'Schema name cannot be updated. Name is used for uniqueness checks.' });
+      const trimmedName = typeof name === 'string' ? name.trim() : name;
+      const trimmedExistingName = typeof existing.name === 'string' ? existing.name.trim() : existing.name;
+      if (trimmedName !== trimmedExistingName) {
+        return res.status(400).json({ 
+          error: `Schema name cannot be updated. Provided name '${name}' does not match existing name '${existing.name}'. Name is used for uniqueness checks.` 
+        });
+      }
+    }
+    if (type !== undefined && type !== existing.type) {
+      return res.status(400).json({ 
+        error: `Schema type cannot be updated. Provided type '${type}' does not match existing type '${existing.type}'. Type is used for uniqueness checks.` 
+      });
     }
 
     const updates: any = {};
 
-    if (type !== undefined) {
-      // Validate type
-      const validTypes: string[] = ['signal', 'post-processor'];
-      if (!validTypes.includes(type)) {
-        return res.status(400).json({ error: `Type must be one of: ${validTypes.join(', ')}` });
-      }
-      updates.type = type;
-    }
+    // Note: name and type are validated above but not included in updates
+    // They are used for validation/lookup only, not for updating
+
     if (description !== undefined) updates.description = description;
     if (schema !== undefined) updates.schema = schema;
 
@@ -159,6 +172,28 @@ router.put('/:schemaId/active', async (req: Request, res: Response) => {
 });
 
 /**
+ * PUT /api/schemas/:id/enabled
+ * Toggle enabled/disabled state of a schema
+ */
+router.put('/:id/enabled', async (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled must be a boolean value' });
+    }
+
+    const schema = await SchemaService.toggleSchemaEnabled(req.params.id, enabled);
+    if (!schema) {
+      return res.status(404).json({ error: 'Schema not found' });
+    }
+
+    res.json(schema);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
  * DELETE /api/schemas
  * Delete all schemas (only those without associated configurations)
  */
@@ -177,17 +212,17 @@ router.delete('/', async (req: Request, res: Response) => {
 });
 
 /**
- * DELETE /api/schemas/:schemaId
- * Delete all versions of a schema
+ * DELETE /api/schemas/:id
+ * Delete a schema by its unique id
  * Only allowed if schema has no associated configurations
  */
-router.delete('/:schemaId', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const deletedCount = await SchemaService.deleteAllVersionsBySchemaId(req.params.schemaId);
-    if (deletedCount === 0) {
+    const deleted = await SchemaService.deleteSchemaById(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Schema not found' });
     }
-    res.json({ message: `Deleted ${deletedCount} version(s) of schema`, deletedCount });
+    res.json({ message: 'Schema deleted successfully' });
   } catch (error: any) {
     // Check if error is about configurations
     if (error.message.includes('configuration(s) are using this schema')) {

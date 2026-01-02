@@ -1,23 +1,16 @@
 {
-  "name": "schema-validator",
+  "name": "schema-validator-server",
   "version": "1.0.0",
   "description": "Node.js Express application for CRUD operations on JSON schemas and validating configuration objects",
-  "main": "server/dist/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "npm run build:server && npm run build:ui",
-    "build:server": "cd server && npm run build",
-    "build:ui": "cd ui && npm run build",
-    "start": "cd server && npm start",
-    "dev": "npm run dev:server",
-    "dev:server": "cd server && npm run dev",
-    "dev:ui": "cd ui && npm run dev",
-    "watch": "cd server && npm run watch",
-    "test": "cd server && npm test",
-    "test:watch": "cd server && npm run test:watch",
-    "test:coverage": "cd server && npm run test:coverage",
-    "docker:build": "docker build -t schema-validator:latest .",
-    "docker:run": "docker run -d -p 3000:3000 --name schema-validator schema-validator:latest",
-    "docker:stop": "docker stop schema-validator && docker rm schema-validator"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "watch": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [
     "json-schema",
@@ -50,3 +43,4 @@
     "typescript": "^5.3.3"
   }
 }
+

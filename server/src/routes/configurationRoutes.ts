@@ -77,23 +77,36 @@ router.post('/', async (req: Request, res: Response) => {
  */
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { name, type, data } = req.body as UpdateConfigurationRequest;
+    const { name, type, schemaId, data } = req.body as UpdateConfigurationRequest;
     
-    // Prevent name updates - name is used for uniqueness checks
-    if (name !== undefined) {
+    // Get existing configuration to validate name and type match
+    const existing = await ConfigurationService.getConfigurationById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Configuration not found' });
+    }
+
+    // Validate that name and type match the existing configuration (if provided)
+    if (name !== undefined && name !== existing.name) {
       return res.status(400).json({ error: 'Configuration name cannot be updated. Name is used for uniqueness checks.' });
+    }
+    if (type !== undefined && type !== existing.type) {
+      return res.status(400).json({ error: 'Configuration type cannot be updated. Type is used for uniqueness checks.' });
     }
 
     const updates: any = {};
 
-    if (type !== undefined) {
-      // Validate type
-      const validTypes: string[] = ['signal', 'post-processor'];
-      if (!validTypes.includes(type)) {
-        return res.status(400).json({ error: `Type must be one of: ${validTypes.join(', ')}` });
+    // Note: name and type are validated above but not included in updates
+    // They are used for validation/lookup only, not for updating
+
+    // Allow schemaId to be updated (now stores the schema's unique id, not schemaId that groups versions)
+    if (schemaId !== undefined) {
+      // Validate schemaId format if needed
+      if (typeof schemaId !== 'string' || !schemaId.trim()) {
+        return res.status(400).json({ error: 'Invalid schemaId' });
       }
-      updates.type = type;
+      updates.schemaId = schemaId;
     }
+
     if (data !== undefined) updates.data = data;
 
     const updated = await ConfigurationService.updateConfiguration(req.params.id, updates);

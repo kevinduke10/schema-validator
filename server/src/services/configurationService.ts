@@ -1,26 +1,31 @@
 import { Configuration } from '../types';
 import { SchemaService } from './schemaService';
+import { SchemaRepository } from '../database/repositories/schemaRepository';
 import { ConfigurationRepository } from '../database/repositories/configurationRepository';
 import { NotificationService } from './notificationService';
 
 // Lazy getter for repository instance (initialized after DB connection)
 const getConfigurationRepository = () => ConfigurationRepository.getInstance();
+const getSchemaRepository = () => SchemaRepository.getInstance();
 
 export class ConfigurationService {
   /**
    * Create a new configuration object (validates against active schema version)
    */
   static async createConfiguration(configData: Omit<Configuration, 'id' | 'createdAt' | 'updatedAt'>): Promise<Configuration> {
-    // Check for duplicate name (case-insensitive) with same schemaId
-    const existingByName = await getConfigurationRepository().findByNameAndSchemaId(configData.name, configData.schemaId);
-    if (existingByName) {
-      throw new Error(`Configuration with name '${configData.name}' for schema '${configData.schemaId}' already exists`);
+    // configData.schemaId now contains the schema's unique id (not schemaId that groups versions)
+    const schemaId = configData.schemaId;
+    
+    // Find the schema by its unique id
+    const schema = await getSchemaRepository().findById(schemaId);
+    if (!schema) {
+      throw new Error(`Schema with id ${schemaId} not found`);
     }
 
-    // Validate that the active schema exists
-    const schema = await SchemaService.getActiveSchemaBySchemaId(configData.schemaId);
-    if (!schema) {
-      throw new Error(`Active schema with schemaId ${configData.schemaId} not found`);
+    // Check for duplicate name (case-insensitive) with same schema id
+    const existingByName = await getConfigurationRepository().findByNameAndSchemaId(configData.name, schemaId);
+    if (existingByName) {
+      throw new Error(`Configuration with name '${configData.name}' for schema '${schema.name}' already exists`);
     }
 
     // Validate that configuration type matches schema type
@@ -28,13 +33,13 @@ export class ConfigurationService {
       throw new Error(`Configuration type '${configData.type}' does not match schema type '${schema.type}'`);
     }
 
-    // Validate data against the active schema
-    const validation = await SchemaService.validateData(configData.schemaId, configData.data);
+    // Validate data against the specific schema version
+    const validation = await SchemaService.validateDataByVersion(schema.schemaId, schema.version, configData.data);
     if (!validation.valid) {
       throw new Error(`Configuration data does not conform to schema: ${validation.errors?.join(', ')}`);
     }
 
-    // Save to database
+    // Save to database (schemaId field stores the schema's unique id)
     const configuration = await getConfigurationRepository().create(configData);
     
     // Publish notification
@@ -51,10 +56,22 @@ export class ConfigurationService {
   }
 
   /**
-   * Get configurations by schema ID
+   * Get configurations by schema ID (schema's unique id, not schemaId that groups versions)
    */
   static async getConfigurationsBySchemaId(schemaId: string): Promise<Configuration[]> {
     return await getConfigurationRepository().findBySchemaId(schemaId);
+  }
+
+  /**
+   * Get configurations by schema's schemaId (the id that groups versions together)
+   */
+  static async getConfigurationsBySchemaSchemaId(schemaSchemaId: string): Promise<Configuration[]> {
+    // Find all schemas with this schemaId
+    const schemas = await SchemaService.getAllVersionsBySchemaId(schemaSchemaId);
+    const schemaIds = schemas.map(s => s.id);
+    // Find all configurations that reference any of these schema ids
+    const allConfigs = await getConfigurationRepository().findAll();
+    return allConfigs.filter(config => schemaIds.includes(config.schemaId));
   }
 
   /**
@@ -81,30 +98,63 @@ export class ConfigurationService {
   /**
    * Update a configuration
    */
-  static async updateConfiguration(id: string, updates: Partial<Omit<Configuration, 'id' | 'createdAt' | 'schemaId'>>): Promise<Configuration | null> {
-    // Prevent name updates - name is used for uniqueness checks
-    if (updates.name !== undefined) {
-      throw new Error('Configuration name cannot be updated. Name is used for uniqueness checks.');
-    }
-
+  static async updateConfiguration(id: string, updates: Partial<Omit<Configuration, 'id' | 'createdAt'>>): Promise<Configuration | null> {
     const existing = await getConfigurationRepository().findById(id);
     if (!existing) {
       return null;
     }
 
-    // If type is being updated, validate it matches the schema type
-    if (updates.type !== undefined) {
-      const schema = await SchemaService.getActiveSchemaBySchemaId(existing.schemaId);
-      if (schema && updates.type !== schema.type) {
-        throw new Error(`Configuration type '${updates.type}' does not match schema type '${schema.type}'`);
-      }
+    // Validate that name matches if provided (name cannot be updated)
+    if (updates.name !== undefined && updates.name !== existing.name) {
+      throw new Error('Configuration name cannot be updated. Name is used for uniqueness checks.');
     }
 
-    // If data is being updated, validate against schema
+    // Validate that type matches if provided (type cannot be updated)
+    if (updates.type !== undefined && updates.type !== existing.type) {
+      throw new Error('Configuration type cannot be updated. Type is used for uniqueness checks.');
+    }
+
+    // Get the schema to validate against (existing.schemaId contains the schema's unique id)
+    let validationSchema = await getSchemaRepository().findById(existing.schemaId);
+    if (!validationSchema) {
+      throw new Error(`Schema with id ${existing.schemaId} not found`);
+    }
+
+    // If schemaId is being updated, validate the new schema exists
+    // updates.schemaId now contains the new schema's unique id
+    if (updates.schemaId !== undefined && updates.schemaId !== existing.schemaId) {
+      const newSchema = await getSchemaRepository().findById(updates.schemaId);
+      if (!newSchema) {
+        throw new Error(`Schema with id ${updates.schemaId} not found`);
+      }
+      
+      // Validate that configuration type matches the new schema type
+      if (existing.type !== newSchema.type) {
+        throw new Error(`Configuration type '${existing.type}' does not match new schema type '${newSchema.type}'`);
+      }
+      
+      validationSchema = newSchema;
+    }
+
+    // If data is being updated, validate against the schema
     if (updates.data !== undefined) {
-      const validation = await SchemaService.validateData(existing.schemaId, updates.data);
+      const validation = await SchemaService.validateDataByVersion(
+        validationSchema.schemaId, 
+        validationSchema.version, 
+        updates.data
+      );
       if (!validation.valid) {
         throw new Error(`Configuration data does not conform to schema: ${validation.errors?.join(', ')}`);
+      }
+    } else if (updates.schemaId !== undefined && updates.schemaId !== existing.schemaId) {
+      // If only schemaId is being updated, validate existing data against new schema
+      const validation = await SchemaService.validateDataByVersion(
+        validationSchema.schemaId,
+        validationSchema.version,
+        existing.data
+      );
+      if (!validation.valid) {
+        throw new Error(`Configuration data does not conform to new schema: ${validation.errors?.join(', ')}`);
       }
     }
 

@@ -64,6 +64,7 @@ describe('SchemaService', () => {
     schemaId: 'test-schema-id',
     version: 1,
     active: true,
+    enabled: true,
     type: 'signal',
     name: 'Test Schema',
     description: 'Test Description',
@@ -309,15 +310,36 @@ describe('SchemaService', () => {
     });
   });
 
-  describe('deleteSchema', () => {
-    it('should delete a schema by document ID', async () => {
+  describe('deleteSchemaById', () => {
+    it('should delete a schema by document ID when no configurations use it', async () => {
       (mockRepositoryMethods.findById as jest.Mock).mockResolvedValue(mockSchema);
       (mockRepositoryMethods.delete as jest.Mock).mockResolvedValue(true);
+      // Mock ConfigurationService
+      jest.spyOn(require('../configurationService').ConfigurationService, 'getAllConfigurations').mockResolvedValue([]);
 
-      const result = await SchemaService.deleteSchema('test-id-1');
+      const result = await SchemaService.deleteSchemaById('test-id-1');
 
       expect(result).toBe(true);
       expect(mockRepositoryMethods.delete).toHaveBeenCalledWith('test-id-1');
+    });
+
+    it('should throw error if configurations are using the schema', async () => {
+      (mockRepositoryMethods.findById as jest.Mock).mockResolvedValue(mockSchema);
+      // Mock ConfigurationService to return configurations using this schema
+      jest.spyOn(require('../configurationService').ConfigurationService, 'getAllConfigurations').mockResolvedValue([
+        { id: 'config-1', schemaId: 'test-id-1', name: 'Test Config', type: 'signal', data: {} }
+      ]);
+
+      await expect(SchemaService.deleteSchemaById('test-id-1')).rejects.toThrow('Cannot delete schema: 1 configuration(s) are using this schema');
+    });
+
+    it('should return false if schema not found', async () => {
+      (mockRepositoryMethods.findById as jest.Mock).mockResolvedValue(null);
+
+      const result = await SchemaService.deleteSchemaById('non-existent');
+
+      expect(result).toBe(false);
+      expect(mockRepositoryMethods.delete).not.toHaveBeenCalled();
     });
   });
 

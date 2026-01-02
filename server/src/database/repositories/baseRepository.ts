@@ -29,10 +29,13 @@ export abstract class BaseRepository<T extends { id: string; createdAt: Date; up
   protected toEntity(doc: any): T {
     if (!doc) return doc;
     const { _id, ...rest } = doc;
-    return {
+    // Default enabled to true for backward compatibility
+    const entity = {
       ...rest,
       id: _id.toString(),
+      enabled: rest.enabled !== undefined ? rest.enabled : true,
     } as T;
+    return entity;
   }
 
   /**

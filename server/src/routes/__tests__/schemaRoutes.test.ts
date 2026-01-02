@@ -47,6 +47,7 @@ describe('Schema Routes', () => {
       schemaId: 'test-schema-id',
       version: 1,
       active: true,
+      enabled: true,
       type: 'signal',
       name: 'Test Schema',
       description: 'Test Description',

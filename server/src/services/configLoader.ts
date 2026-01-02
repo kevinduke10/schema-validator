@@ -191,7 +191,8 @@ export class ConfigLoader {
           },
           version,
           active,
-          schemaData.schemaId
+          schemaData.schemaId,
+          true // enabled defaults to true
         );
 
         console.log(`Created schema '${schema.name}' (type: ${schema.type}, schemaId: ${schema.schemaId}, version: ${schema.version}, active: ${schema.active})`);
@@ -326,8 +327,8 @@ export class ConfigLoader {
           schema = activeSchema;
         }
 
-        // Check if configuration already exists by name and schemaId (case-insensitive)
-        const existing = await getConfigurationRepository().findByNameAndSchemaId(configData.name, schema.schemaId);
+        // Check if configuration already exists by name and schema id (case-insensitive)
+        const existing = await getConfigurationRepository().findByNameAndSchemaId(configData.name, schema.id);
 
         if (existing) {
           console.log(`Configuration '${configData.name}' already exists. Skipping.`);
@@ -346,9 +347,9 @@ export class ConfigLoader {
           continue;
         }
 
-        // Create the configuration
+        // Create the configuration (store the schema's unique id, not schemaId)
         const configuration = await getConfigurationRepository().create({
-          schemaId: schema.schemaId,
+          schemaId: schema.id, // Store the schema's unique id
           type: configData.type,
           name: configData.name,
           data: configData.data,

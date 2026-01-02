@@ -1,6 +1,8 @@
-# Schema Validator API
+# Schema Validator
 
-A Node.js Express application built with TypeScript for managing JSON schemas and validating configuration objects against those schemas.
+A full-stack application for managing JSON schemas and validating configuration objects. The project consists of:
+- **Server**: Node.js Express API built with TypeScript
+- **UI**: Vue.js frontend with Vite and Vuex
 
 ## Features
 
@@ -23,9 +25,19 @@ A Node.js Express application built with TypeScript for managing JSON schemas an
 
 ## Installation
 
-1. Install dependencies:
+1. Install root dependencies:
 ```bash
 npm install
+```
+
+2. Install server dependencies:
+```bash
+cd server && npm install
+```
+
+3. Install UI dependencies:
+```bash
+cd ui && npm install
 ```
 
 2. Set up MongoDB using Docker Compose (recommended for local development):
@@ -77,9 +89,14 @@ npm install
      PORT=3000
      ```
 
-4. Build the TypeScript code:
+4. Build the application:
 ```bash
+# Build both server and UI
 npm run build
+
+# Or build individually
+npm run build:server  # Build server only
+npm run build:ui      # Build UI only
 ```
 
 ## Testing
@@ -101,25 +118,43 @@ npm run test:coverage
 
 ### Test Structure
 
-- `src/services/__tests__/` - Service layer unit tests
-- `src/routes/__tests__/` - API route integration tests
+- `server/src/services/__tests__/` - Service layer unit tests
+- `server/src/routes/__tests__/` - API route integration tests
 
 Tests use mocks for database operations and external dependencies, ensuring fast and isolated test execution.
 
 ## Running the Application
 
-### Development Mode (with auto-reload)
+### Development Mode
+
+**Server (with auto-reload):**
 ```bash
-npm run dev
+npm run dev:server
+# or
+cd server && npm run dev
 ```
+
+**UI (with hot module replacement):**
+```bash
+npm run dev:ui
+# or
+cd ui && npm run dev
+```
+
+The server will start on `http://localhost:3000` and the UI will start on `http://localhost:5173` (Vite default port).
 
 ### Production Mode
 ```bash
+# Build both
 npm run build
+
+# Start server
 npm start
+# or
+cd server && npm start
 ```
 
-The server will start on `http://localhost:3000` by default.
+The UI build output will be in `ui/dist/` and can be served by any static file server or the Express server.
 
 ## API Testing
 
@@ -348,42 +383,62 @@ kubectl apply -f k8s/ingress.yaml
 
 ```
 schema-validator/
-├── src/
-│   ├── index.ts                 # Main application entry point
-│   ├── types/
-│   │   └── index.ts            # TypeScript type definitions
-│   ├── database/
-│   │   ├── connection.ts       # MongoDB connection management
-│   │   └── repositories/
-│   │       ├── baseRepository.ts      # Base repository abstraction
-│   │       ├── schemaRepository.ts    # Schema repository
-│   │       └── configurationRepository.ts  # Configuration repository
-│   ├── services/
-│   │   ├── schemaService.ts    # Schema business logic
-│   │   ├── configurationService.ts  # Configuration business logic
-│   │   └── __tests__/          # Service unit tests
-│   ├── routes/
-│   │   ├── schemaRoutes.ts     # Schema API routes
-│   │   ├── configurationRoutes.ts  # Configuration API routes
-│   │   └── __tests__/          # Route integration tests
-│   └── __tests__/
-│       └── setup.ts            # Test setup and configuration
-├── k8s/                         # Kubernetes manifests
-│   ├── deployment.yaml         # Deployment and Service
-│   ├── configmap.yaml          # Configuration
-│   ├── secret.yaml.example     # Secret template
-│   ├── ingress.yaml            # Ingress configuration
-│   └── README.md               # K8s deployment guide
-├── dist/                        # Compiled JavaScript (generated)
-├── .env                         # Environment variables (create manually)
-├── .dockerignore               # Docker ignore file
-├── docker-compose.yml           # Docker Compose configuration
-├── Dockerfile                   # Multi-stage Dockerfile for production
-├── http-examples/               # HTTP request examples
-│   ├── schemas.http             # Sample HTTP requests for schemas
-│   └── configurations.http      # Sample HTTP requests for configurations
-├── package.json
-├── tsconfig.json
+├── server/                       # Backend API
+│   ├── src/
+│   │   ├── index.ts             # Main application entry point
+│   │   ├── types/
+│   │   │   └── index.ts         # TypeScript type definitions
+│   │   ├── database/
+│   │   │   ├── connection.ts   # MongoDB connection management
+│   │   │   └── repositories/
+│   │   │       ├── baseRepository.ts      # Base repository abstraction
+│   │   │       ├── schemaRepository.ts    # Schema repository
+│   │   │       └── configurationRepository.ts  # Configuration repository
+│   │   ├── services/
+│   │   │   ├── schemaService.ts    # Schema business logic
+│   │   │   ├── configurationService.ts  # Configuration business logic
+│   │   │   └── __tests__/          # Service unit tests
+│   │   ├── routes/
+│   │   │   ├── schemaRoutes.ts     # Schema API routes
+│   │   │   ├── configurationRoutes.ts  # Configuration API routes
+│   │   │   └── __tests__/          # Route integration tests
+│   │   └── __tests__/
+│   │       └── setup.ts            # Test setup and configuration
+│   ├── dist/                      # Compiled JavaScript (generated)
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── jest.config.js
+├── ui/                            # Frontend Vue.js application
+│   ├── src/
+│   │   ├── main.js               # Vue app entry point
+│   │   ├── App.vue               # Root component
+│   │   ├── components/           # Vue components
+│   │   │   ├── SchemasView.vue
+│   │   │   └── ConfigurationsView.vue
+│   │   ├── store/                # Vuex store
+│   │   │   └── index.js
+│   │   └── services/             # API service layer
+│   │       └── api.js
+│   ├── dist/                     # Built UI (generated)
+│   ├── package.json
+│   └── vite.config.js
+├── k8s/                           # Kubernetes manifests
+│   ├── deployment.yaml           # Deployment and Service
+│   ├── configmap.yaml            # Configuration
+│   ├── secret.yaml.example       # Secret template
+│   ├── ingress.yaml              # Ingress configuration
+│   └── README.md                 # K8s deployment guide
+├── config/                        # Preconfigured schemas and configurations
+├── http-examples/                 # HTTP request examples
+│   ├── schemas.http              # Sample HTTP requests for schemas
+│   └── configurations.http       # Sample HTTP requests for configurations
+├── .env                           # Environment variables (create manually)
+├── .dockerignore                  # Docker ignore file
+├── docker-compose.yml             # Docker Compose configuration
+├── Dockerfile                     # Multi-stage Dockerfile for production
+├── package.json                   # Root package.json with workspace scripts
+├── tsconfig.json                  # Base TypeScript config
+├── jest.config.js                 # Root Jest config
 └── README.md
 ```
 
