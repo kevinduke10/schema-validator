@@ -26,8 +26,17 @@
             <option value="post-processor">Post-Processor</option>
           </select>
         </div>
+        <div class="form-group checkbox-group">
+          <label>
+            Active
+            <input 
+              type="checkbox" 
+              v-model="showActiveOnly"
+              class="filter-checkbox"
+            />
+          </label>
+        </div>
         <button 
-          v-if="nameFilter || typeFilter" 
           @click="clearFilters" 
           class="btn btn-sm btn-secondary clear-filter-btn"
         >
@@ -268,7 +277,20 @@ export default {
     const cloneConfigJson = ref('');
 
     const configurations = computed(() => store.state.configurations);
-    const filteredConfigurations = computed(() => store.getters.filteredConfigurations);
+    const showActiveOnly = ref(false);
+    const baseFilteredConfigurations = computed(() => store.getters.filteredConfigurations);
+    
+    // Apply active filter on top of the base filtered configurations
+    const filteredConfigurations = computed(() => {
+      let filtered = baseFilteredConfigurations.value;
+      
+      // Filter by active status if checkbox is checked
+      if (showActiveOnly.value) {
+        filtered = filtered.filter(c => c.active === true);
+      }
+      
+      return filtered;
+    });
     const activeSchemas = computed(() => store.getters.activeSchemas);
     const enabledSchemas = computed(() => store.getters.enabledSchemas);
     const allSchemas = computed(() => store.state.schemas);
@@ -313,6 +335,7 @@ export default {
     const clearFilters = () => {
       store.commit('SET_CONFIGURATION_NAME_FILTER', '');
       store.commit('SET_CONFIGURATION_TYPE_FILTER', '');
+      showActiveOnly.value = false;
     };
 
     const handleCreate = async () => {
@@ -559,6 +582,7 @@ export default {
       formattedEditSchema,
       nameFilter,
       typeFilter,
+      showActiveOnly,
       clearFilters,
       editFormRef,
       updateError,
@@ -960,6 +984,29 @@ export default {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.checkbox-group {
+  flex: 0 0 auto;
+  min-width: 100px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-weight: normal;
+  min-width: auto;
+  font-size: 14px;
+}
+
+.filter-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .filter-select {
